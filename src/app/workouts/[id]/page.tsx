@@ -1,125 +1,103 @@
-import { createClient } from "@/lib/supabase/server"
-import { redirect } from "next/navigation"
-import { notFound } from "next/navigation"
-import Link from "next/link"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { ArrowLeft } from "lucide-react"
+'use client'
 
-export default async function WorkoutDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}) {
-  const { id } = await params
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect("/auth/login")
+import { useEffect, useState } from 'react'
+import { useParams } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
 
-  const { data: workout } = await supabase
-    .from("workouts")
-    .select("*")
-    .eq("id", id)
-    .single()
+export default function WorkoutDetailPage() {
+  const { id } = useParams<{ id: string }>()
+  const [workout, setWorkout] = useState<any>(null)
+  const [exercises, setExercises] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  if (!workout || workout.user_id !== user.id) notFound()
-
-  const { data: workoutExercises } = await supabase
-    .from("workout_exercises")
-    .select("*, exercises(name, category)")
-    .eq("workout_id", id)
-    .order("sort_order")
-
-  let totalVolume = 0
-  const exercisesWithSets: { id: string; sets: { id: string; set_number: number; reps: number; weight_kg: number | null }[] }[] = await Promise.all(
-    (workoutExercises || []).map(async (we) => {
-      const { data: sets } = await supabase
-        .from("exercise_sets")
-        .select("*")
-        .eq("workout_exercise_id", we.id)
-        .order("set_number")
-
-      sets?.forEach((s) => {
-        totalVolume += (s.reps * (s.weight_kg ?? 0))
-      })
-
-      return { ...we, sets: sets || [] }
+  useEffect(() => {
+    if (!id) return
+    const supabase = createClient()
+    supabase.from('workouts').select('*').eq('id', id).single().then(({ data }) => {
+      setWorkout(data); setLoading(false)
     })
-  )
+    supabase.from('workout_exercises').select('*, exercises(name, category)').eq('workout_id', id).order('sort_order')
+      .then(async ({ data }) => {
+        if (!data) return
+        const supabase2 = createClient()
+        const withSets = await Promise.all(data.map(async (we: any) => {
+          const { data: sets } = await supabase2.from('exercise_sets').select('*').eq('workout_exercise_id', we.id).order('set_number')
+          return { ...we, sets: sets || [] }
+        }))
+        setExercises(withSets)
+      })
+  }, [id])
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><p className="text-sm" style={{ color: 'var(--muted)', fontFamily: 'var(--font-mono-stack)' }}>…loading</p></div>
+  if (!workout) return <div className="min-h-screen flex items-center justify-center"><p className="text-sm" style={{ color: 'var(--muted)' }}>Workout not found</p></div>
+
+  const totalVolume = exercises.reduce((sum, we) => sum + we.sets.reduce((s: number, set: any) => s + (set.reps * (set.weight_kg ?? 0)), 0), 0)
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Link href="/workouts">
-          <Button variant="ghost" size="sm" className="text-zinc-400">
-            <ArrowLeft className="mr-1 h-4 w-4" />
-            Back
-          </Button>
+    <div className="min-h-screen p-4 md:p-6 lg:p-8 max-w-3xl mx-auto relative">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-8">
+        <Link href="/workouts" className="hover:opacity-70 transition-opacity" style={{ color: 'var(--muted)' }}>
+          <ArrowLeft className="h-5 w-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-white">{workout.name}</h1>
-          <p className="text-zinc-400">
-            {new Date(workout.started_at).toLocaleDateString("en-US", {
-              weekday: "long",
-              month: "long",
-              day: "numeric",
-              hour: "numeric",
-              minute: "2-digit",
-            })}
+          <h1 className="text-4xl font-black tracking-tighter" style={{ fontFamily: 'var(--font-heading-stack)' }}>{workout.name}</h1>
+          <p className="text-xs tracking-wider uppercase mt-1" style={{ fontFamily: 'var(--font-mono-stack)', color: 'var(--muted)' }}>
+            {new Date(workout.started_at).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
           </p>
         </div>
-        <Badge variant={workout.completed_at ? "default" : "secondary"} className="ml-auto">
-          {workout.completed_at ? "Completed" : "In Progress"}
-        </Badge>
+        <span className="ml-auto badge-chalk" style={{ background: workout.completed_at ? 'var(--success-dim)' : 'var(--warning)', color: 'var(--bg)' }}>
+          {workout.completed_at ? 'COMPLETED' : 'ACTIVE'}
+        </span>
       </div>
 
-      <Card className="border-zinc-800 bg-zinc-900">
-        <CardHeader>
-          <CardTitle className="text-white">
-            Total Volume: {totalVolume.toLocaleString()} kg
-          </CardTitle>
-        </CardHeader>
-      </Card>
+      {/* Total volume */}
+      <div className="card-chalk p-5 mb-8 flex items-center justify-between">
+        <span className="label-sm mb-0">TOTAL VOLUME</span>
+        <p className="text-3xl font-bold tracking-tight" style={{ fontFamily: 'var(--font-mono-stack)' }}>
+          {totalVolume.toLocaleString()} <span className="text-base" style={{ color: 'var(--muted)' }}>kg</span>
+        </p>
+      </div>
 
-      <div className="space-y-4">
-        {exercisesWithSets.map((wes) => (
-          <Card key={wes.id} className="border-zinc-800 bg-zinc-900">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base text-white">
-                {(wes as any).exercises?.name ?? "Exercise"}
-                <Badge variant="outline" className="ml-2 text-xs">
-                  {(wes as any).exercises?.category ?? ""}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-zinc-500">
-                      <th className="pb-2 font-medium">Set</th>
-                      <th className="pb-2 font-medium">Weight</th>
-                      <th className="pb-2 font-medium">Reps</th>
-                      <th className="pb-2 font-medium">Volume</th>
+      {/* Exercise tables */}
+      <div className="space-y-4 stagger">
+        {exercises.map(we => (
+          <div key={we.id} className="card-sheet">
+            <div className="p-4 border-b" style={{ borderColor: 'var(--border)' }}>
+              <h3 className="text-base font-bold tracking-tighter" style={{ fontFamily: 'var(--font-heading-stack)' }}>
+                {we.exercises?.name}
+                <span className="ml-2 text-[10px] tracking-widest uppercase" style={{ fontFamily: 'var(--font-mono-stack)', color: 'var(--muted)' }}>
+                  {we.exercises?.category}
+                </span>
+              </h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ color: 'var(--muted)' }}>
+                    <th className="text-left p-3 pb-2 text-[10px] tracking-widest uppercase font-medium" style={{ fontFamily: 'var(--font-mono-stack)' }}>Set</th>
+                    <th className="text-left p-3 pb-2 text-[10px] tracking-widest uppercase font-medium" style={{ fontFamily: 'var(--font-mono-stack)' }}>Weight</th>
+                    <th className="text-left p-3 pb-2 text-[10px] tracking-widest uppercase font-medium" style={{ fontFamily: 'var(--font-mono-stack)' }}>Reps</th>
+                    <th className="text-right p-3 pb-2 text-[10px] tracking-widest uppercase font-medium" style={{ fontFamily: 'var(--font-mono-stack)' }}>Volume</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {we.sets.map((s: any) => (
+                    <tr key={s.id} className="border-t hover:opacity-80 transition-opacity" style={{ borderColor: 'var(--border)' }}>
+                      <td className="p-3" style={{ fontFamily: 'var(--font-mono-stack)', color: 'var(--muted)' }}>{s.set_number}</td>
+                      <td className="p-3 font-medium">{s.weight_kg ?? 0} kg</td>
+                      <td className="p-3 font-medium">{s.reps}</td>
+                      <td className="p-3 text-right" style={{ fontFamily: 'var(--font-mono-stack)', color: 'var(--primary)' }}>
+                        {(s.reps * (s.weight_kg ?? 0)).toLocaleString()} kg
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {wes.sets.map((s) => (
-                      <tr key={s.id} className="border-t border-zinc-800">
-                        <td className="py-2 text-zinc-400">{s.set_number}</td>
-                        <td className="py-2 text-white">{s.weight_kg ?? 0} kg</td>
-                        <td className="py-2 text-white">{s.reps}</td>
-                        <td className="py-2 text-orange-400">
-                          {(s.reps * (s.weight_kg ?? 0)).toLocaleString()} kg
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         ))}
       </div>
     </div>

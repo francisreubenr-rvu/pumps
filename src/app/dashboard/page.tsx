@@ -1,181 +1,160 @@
-import { createClient } from "@/lib/supabase/server"
-import { redirect } from "next/navigation"
-import Link from "next/link"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Plus, Dumbbell, TrendingUp, CalendarDays, ArrowRight } from "lucide-react"
+'use client'
 
-export default async function DashboardPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect("/auth/login")
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
+import { Dumbbell, TrendingUp, Swords, Plus, ArrowRight } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("username")
-    .eq("id", user.id)
-    .single()
+export default function DashboardPage() {
+  const [user, setUser] = useState<any>(null)
+  const router = useRouter()
+  const [profile, setProfile] = useState<any>(null)
+  const [mounted, setMounted] = useState(false)
+  const [workoutCount, setWorkoutCount] = useState(0)
+  const [volume, setVolume] = useState(0)
+  const [recentWorkouts, setRecentWorkouts] = useState<any[]>([])
+  const [activeComps, setActiveComps] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  if (!profile?.username) redirect("/onboarding")
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) { router.replace('/auth/login'); return }
+      setUser(data.user)
+    })
+  }, [])
 
-  const { count: workoutCount } = await supabase
-    .from("workouts")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id)
+  useEffect(() => {
+    if (!user) return
+    const supabase = createClient()
+    supabase.from('profiles').select('*').eq('id', user.id).single().then(({ data }) => setProfile(data))
+    supabase.from('workouts').select('*', { count: 'exact', head: true }).eq('user_id', user.id).then(({ count }) => setWorkoutCount(count ?? 0))
+    supabase.from('exercise_sets')
+      .select('reps, weight_kg, workout_exercises!inner(workout_id, workouts!inner(user_id))')
+      .eq('workout_exercises.workouts.user_id', user.id).eq('completed', true)
+      .then(({ data }) => setVolume(data?.reduce((s: number, r: any) => s + (r.reps * (r.weight_kg ?? 0)), 0) ?? 0))
+    supabase.from('workouts').select('*').eq('user_id', user.id).order('started_at', { ascending: false }).limit(5)
+      .then(({ data }) => { setRecentWorkouts(data ?? []); setLoading(false) })
+    supabase.from('competitions').select('*, exercises(name)').eq('status', 'active').limit(5)
+      .then(({ data }) => setActiveComps(data ?? []))
+  }, [user])
 
-  const { data: recentWorkouts } = await supabase
-    .from("workouts")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("started_at", { ascending: false })
-    .limit(5)
+  useEffect(() => { setMounted(true) }, [])
 
-  const { data: totalVolume } = await supabase
-    .from("exercise_sets")
-    .select("reps, weight_kg, workout_exercises!inner(workout_id, workouts!inner(user_id))")
-    .eq("workout_exercises.workouts.user_id", user.id)
-    .eq("completed", true)
-
-  const volume = totalVolume?.reduce((sum, s) => sum + (s.reps * (s.weight_kg ?? 0)), 0) ?? 0
-
-  const { data: activeCompetitions } = await supabase
-    .from("competitions")
-    .select("*")
-    .eq("status", "active")
-    .limit(5)
+  const username = profile?.username || user?.email?.split('@')[0] || 'Athlete'
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="min-h-screen p-4 md:p-6 lg:p-8 relative">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-10" style={{ animation: mounted ? 'chalkReveal 0.4s var(--ease-quart) both' : 'none' }}>
         <div>
-          <h1 className="text-2xl font-bold text-white">Welcome back, {profile.username}</h1>
-          <p className="text-zinc-400">Here&apos;s your gym overview</p>
+          <p className="label-sm">WELCOME BACK</p>
+          <h1 className="text-4xl md:text-5xl font-black tracking-tighter" style={{ fontFamily: 'var(--font-heading-stack)' }}>
+            {username}
+          </h1>
         </div>
-        <Link href="/workouts/new">
-          <Button className="bg-gradient-to-r from-orange-500 to-red-600 text-white hover:from-orange-600 hover:to-red-700">
-            <Plus className="mr-2 h-4 w-4" />
-            Start Workout
-          </Button>
+        <Link href="/workouts/new" className="btn-primary">
+          <Plus className="h-4 w-4" />
+          Start Workout
         </Link>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Card className="border-zinc-800 bg-zinc-900">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm font-medium text-zinc-400">
-              <Dumbbell className="h-4 w-4 text-orange-500" />
-              Total Workouts
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-white">{workoutCount ?? 0}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-zinc-800 bg-zinc-900">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm font-medium text-zinc-400">
-              <TrendingUp className="h-4 w-4 text-green-500" />
-              Total Volume
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-white">{volume.toLocaleString()} kg</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-zinc-800 bg-zinc-900">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm font-medium text-zinc-400">
-              <CalendarDays className="h-4 w-4 text-blue-500" />
-              Active Competitions
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold text-white">{activeCompetitions?.length ?? 0}</p>
-          </CardContent>
-        </Card>
+      {/* Stat cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10 stagger">
+        {[
+          { label: 'WORKOUTS', value: workoutCount, unit: '', icon: Dumbbell, color: 'var(--primary)' },
+          { label: 'TOTAL VOLUME', value: volume.toLocaleString(), unit: 'kg', icon: TrendingUp, color: 'var(--success)' },
+          { label: 'LIVE COMPS', value: activeComps.length, unit: '', icon: Swords, color: 'var(--warning)' },
+        ].map(({ label, value, unit, icon: Icon, color }) => (
+          <div key={label} className="card-chalk p-5 flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <Icon className="h-4 w-4" style={{ color }} />
+              <span className="label-sm mb-0">{label}</span>
+            </div>
+            <p className="text-4xl font-bold tracking-tight" style={{ fontFamily: 'var(--font-mono-stack)' }}>
+              {value}
+              {unit && <span className="text-lg ml-1" style={{ color: 'var(--muted)' }}>{unit}</span>}
+            </p>
+          </div>
+        ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="border-zinc-800 bg-zinc-900">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-white">Recent Workouts</CardTitle>
-            <Link href="/workouts" className="text-sm text-orange-500 hover:text-orange-400">
-              View all <ArrowRight className="ml-1 inline h-3 w-3" />
+      {/* Recent + Active */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Workouts */}
+        <div className="card-sheet">
+          <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: 'var(--border)' }}>
+            <h2 className="text-lg font-bold tracking-tighter" style={{ fontFamily: 'var(--font-heading-stack)' }}>Recent Workouts</h2>
+            <Link href="/workouts" className="text-xs flex items-center gap-1 hover:underline" style={{ fontFamily: 'var(--font-mono-stack)', color: 'var(--primary)' }}>
+              View all <ArrowRight className="h-3 w-3" />
             </Link>
-          </CardHeader>
-          <CardContent>
-            {recentWorkouts && recentWorkouts.length > 0 ? (
-              <div className="space-y-3">
-                {recentWorkouts.map((w) => (
-                  <Link
-                    key={w.id}
-                    href={`/workouts/${w.id}`}
-                    className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-950 p-3 transition-colors hover:border-zinc-700"
-                  >
+          </div>
+          <div className="p-5">
+            {loading ? (
+              <p className="text-sm py-8 text-center" style={{ color: 'var(--muted)' }}>…</p>
+            ) : recentWorkouts.length > 0 ? (
+              <div className="stagger">
+                {recentWorkouts.map((w: any) => (
+                  <Link key={w.id} href={`/workouts/${w.id}`}
+                    className="flex items-center justify-between py-3 border-b last:border-0 hover:opacity-80 transition-opacity"
+                    style={{ borderColor: 'var(--border)' }}>
                     <div>
-                      <p className="font-medium text-white">{w.name}</p>
-                      <p className="text-xs text-zinc-500">
-                        {new Date(w.started_at).toLocaleDateString()}
+                      <p className="text-sm font-medium">{w.name}</p>
+                      <p className="text-[10px] tracking-wider uppercase mt-0.5" style={{ fontFamily: 'var(--font-mono-stack)', color: 'var(--muted)' }}>
+                        {new Date(w.started_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </p>
                     </div>
-                    <Badge variant={w.completed_at ? "default" : "secondary"}>
-                      {w.completed_at ? "Done" : "In Progress"}
-                    </Badge>
+                    <span className="badge-chalk" style={{ background: w.completed_at ? 'var(--success-dim)' : 'var(--warning)', color: 'var(--bg)' }}>
+                      {w.completed_at ? 'DONE' : 'ACTIVE'}
+                    </span>
                   </Link>
                 ))}
               </div>
             ) : (
-              <p className="py-8 text-center text-zinc-500">
-                No workouts yet.{' '}
-                <Link href="/workouts/new" className="text-orange-500 hover:text-orange-400">
-                  Start your first workout
-                </Link>
-              </p>
+              <div className="text-center py-8">
+                <p className="text-sm" style={{ color: 'var(--muted)' }}>No workouts yet</p>
+                <Link href="/workouts/new" className="inline-block mt-3 btn-primary text-sm">Start Your First</Link>
+              </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card className="border-zinc-800 bg-zinc-900">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-white">Active Competitions</CardTitle>
-            <Link href="/competitions" className="text-sm text-orange-500 hover:text-orange-400">
-              View all <ArrowRight className="ml-1 inline h-3 w-3" />
+        {/* Active Competitions */}
+        <div className="card-sheet">
+          <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: 'var(--border)' }}>
+            <h2 className="text-lg font-bold tracking-tighter" style={{ fontFamily: 'var(--font-heading-stack)' }}>Active Competitions</h2>
+            <Link href="/competitions" className="text-xs flex items-center gap-1 hover:underline" style={{ fontFamily: 'var(--font-mono-stack)', color: 'var(--primary)' }}>
+              View all <ArrowRight className="h-3 w-3" />
             </Link>
-          </CardHeader>
-          <CardContent>
-            {activeCompetitions && activeCompetitions.length > 0 ? (
-              <div className="space-y-3">
-                {activeCompetitions.map((c) => (
-                  <Link
-                    key={c.id}
-                    href={`/competitions/${c.id}`}
-                    className="block rounded-lg border border-zinc-800 bg-zinc-950 p-3 transition-colors hover:border-zinc-700"
-                  >
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium text-white">{c.name}</p>
-                      <Badge className="bg-green-600">{c.type.replace("_", " ")}</Badge>
+          </div>
+          <div className="p-5">
+            {activeComps.length > 0 ? (
+              <div className="stagger">
+                {activeComps.map((c: any) => (
+                  <Link key={c.id} href={`/competitions/${c.id}`}
+                    className="flex items-center justify-between py-3 border-b last:border-0 hover:opacity-80 transition-opacity"
+                    style={{ borderColor: 'var(--border)' }}>
+                    <div>
+                      <p className="text-sm font-medium">{c.name}</p>
+                      <p className="text-[10px] tracking-wider uppercase mt-0.5" style={{ fontFamily: 'var(--font-mono-stack)', color: 'var(--muted)' }}>
+                        {c.exercises?.name} — {c.type.replace('_', ' ')}
+                      </p>
                     </div>
-                    <p className="mt-1 text-xs text-zinc-500">
-                      Started {new Date(c.created_at).toLocaleString()}
-                    </p>
+                    <span className="badge-chalk flex items-center gap-1.5" style={{ background: 'var(--success-dim)', color: 'var(--bg)' }}>
+                      <span className="status-dot active" /> LIVE
+                    </span>
                   </Link>
                 ))}
               </div>
             ) : (
-              <div className="py-8 text-center">
-                <p className="text-zinc-500">No active competitions</p>
-                <Link href="/competitions/new">
-                  <Button variant="link" className="mt-2 text-orange-500">
-                    Create one
-                  </Button>
-                </Link>
+              <div className="text-center py-8">
+                <p className="text-sm" style={{ color: 'var(--muted)' }}>No active competitions</p>
+                <Link href="/competitions/new" className="inline-block mt-3 btn-ghost text-sm">Create One</Link>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   )

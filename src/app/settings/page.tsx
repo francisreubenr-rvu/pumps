@@ -1,70 +1,52 @@
-import { createClient } from "@/lib/supabase/server"
-import { redirect } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+'use client'
 
-export default async function SettingsPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect("/auth/login")
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single()
+export default function SettingsPage() {
+  const [user, setUser] = useState<any>(null)
+  const [profile, setProfile] = useState<any>(null)
+  const router = useRouter()
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) { router.replace('/auth/login'); return }
+      setUser(data.user)
+      const { data: p } = await supabase.from('profiles').select('*').eq('id', data.user.id).single()
+      setProfile(p)
+    })
+  }, [])
 
   async function signOut() {
-    "use server"
-    const supabase = await createClient()
-    await supabase.auth.signOut()
-    redirect("/auth/login")
+    await createClient().auth.signOut()
+    router.push('/auth/login')
   }
 
   return (
-    <div className="max-w-lg space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Settings</h1>
-        <p className="text-zinc-400">Manage your account</p>
+    <div className="min-h-screen p-4 md:p-6 lg:p-8 max-w-lg mx-auto relative">
+      <h1 className="text-4xl font-black tracking-tighter mb-1" style={{ fontFamily: 'var(--font-heading-stack)' }}>SETTINGS</h1>
+      <p className="label-sm mb-6">YOUR ACCOUNT</p>
+
+      <div className="card-sheet p-5 mb-4 space-y-3">
+        <div>
+          <span className="label-sm">EMAIL</span>
+          <p className="text-sm">{user?.email}</p>
+        </div>
+        <div>
+          <span className="label-sm">USERNAME</span>
+          <p className="text-sm">{profile?.username ?? 'Not set'}</p>
+        </div>
+        <div>
+          <span className="label-sm">MEMBER SINCE</span>
+          <p className="text-sm">{profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : 'Unknown'}</p>
+        </div>
       </div>
 
-      <Card className="border-zinc-800 bg-zinc-900">
-        <CardHeader>
-          <CardTitle className="text-white">Profile</CardTitle>
-          <CardDescription className="text-zinc-400">Your account information</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div>
-            <span className="text-sm text-zinc-500">Email</span>
-            <p className="text-white">{user.email}</p>
-          </div>
-          <div>
-            <span className="text-sm text-zinc-500">Username</span>
-            <p className="text-white">{profile?.username ?? "Not set"}</p>
-          </div>
-          <div>
-            <span className="text-sm text-zinc-500">Joined</span>
-            <p className="text-white">
-              {profile?.created_at
-                ? new Date(profile.created_at).toLocaleDateString()
-                : "Unknown"}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border-zinc-800 bg-zinc-900">
-        <CardHeader>
-          <CardTitle className="text-white">Account</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form>
-            <Button formAction={signOut} type="submit" variant="destructive" className="w-full">
-              Sign Out
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+      <button onClick={signOut} className="btn-primary w-full" style={{ background: 'var(--danger)' }}>
+        Sign Out
+      </button>
     </div>
   )
 }

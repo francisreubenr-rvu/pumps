@@ -1,210 +1,124 @@
-import { createClient } from "@/lib/supabase/server"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Trophy, Medal, Crown } from "lucide-react"
+'use client'
 
-export default async function LeaderboardPage() {
-  const supabase = await createClient()
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { Crown, Medal } from 'lucide-react'
 
-  const { data: allSets } = await supabase
-    .from("exercise_sets")
-    .select(`
-      weight_kg, reps,
-      workout_exercises!inner(
-        exercise_id,
-        exercises!inner(name, category),
-        workouts!inner(user_id)
-      )
-    `)
-    .eq("completed", true)
+export default function LeaderboardPage() {
+  const [tab, setTab] = useState('max-weight')
+  const [maxWeight, setMaxWeight] = useState<any[]>([])
+  const [totalVolume, setTotalVolume] = useState<any[]>([])
+  const [perExercise, setPerExercise] = useState<Record<string, any[]>>({})
+  const [exercises, setExercises] = useState<any[]>([])
+  const [mounted, setMounted] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("id, username, avatar_url")
-
-  const profileMap = Object.fromEntries((profiles ?? []).map((p) => [p.id, p]))
-
-  const { data: exercises } = await supabase
-    .from("exercises")
-    .select("id, name, category")
-    .order("category")
-
-  const rankIcon = (rank: number) => {
-    if (rank === 1) return <Crown className="h-5 w-5 text-yellow-400" />
-    if (rank === 2) return <Medal className="h-5 w-5 text-zinc-300" />
-    if (rank === 3) return <Medal className="h-5 w-5 text-amber-600" />
-    return <span className="text-zinc-500 font-mono text-sm">{rank}</span>
-  }
-
-  function computeMaxWeight(exerciseId?: string) {
-    if (!allSets) return []
-    const filtered = exerciseId
-      ? allSets.filter((s) => (s as any).workout_exercises.exercise_id === exerciseId)
-      : allSets
-
-    const userBest: Record<string, { weight: number; username: string; avatar: string; exercise: string }> = {}
-    filtered.forEach((s) => {
-      const userId = (s as any).workout_exercises.workouts.user_id
-      const profile = profileMap[userId]
-      if (!profile) return
-      const weight = Number(s.weight_kg ?? 0)
-      if (weight > (userBest[userId]?.weight ?? 0)) {
-        userBest[userId] = {
-          weight,
-          username: profile.username ?? "Unknown",
-          avatar: profile.avatar_url ?? "",
-          exercise: (s as any).workout_exercises.exercises.name,
-        }
-      }
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.from('exercises').select('*').order('category').then(({ data }) => setExercises(data ?? []))
+    supabase.from('exercise_sets').select(`
+      weight_kg, reps, workout_exercises!inner(exercise_id, exercises!inner(name), workouts!inner(user_id))
+    `).eq('completed', true).then(({ data }) => {
+      supabase.from('profiles').select('id, username').then(({ data: profiles }) => {
+        const pm = Object.fromEntries((profiles ?? []).map((p: any) => [p.id, p]))
+        const ub: Record<string, any> = {}; const uv: Record<string, any> = {}; const eb: Record<string, Record<string, any>> = {}
+        ;(data ?? []).forEach((s: any) => {
+          const uid = s.workout_exercises.workouts.user_id
+          const prof = pm[uid]; if (!prof) return
+          const w = Number(s.weight_kg ?? 0)
+          const eid = s.workout_exercises.exercise_id
+          const ename = s.workout_exercises.exercises.name
+          if (w > (ub[uid]?.weight ?? 0)) ub[uid] = { weight: w, username: prof.username, exercise: ename }
+          uv[uid] = { volume: (uv[uid]?.volume ?? 0) + s.reps * w, username: prof.username }
+          if (!eb[eid]) eb[eid] = {}
+          if (w > (eb[eid][uid]?.weight ?? 0)) eb[eid][uid] = { weight: w, username: prof.username }
+        })
+        setMaxWeight(Object.values(ub).sort((a: any, b: any) => b.weight - a.weight).map((e: any, i: number) => ({ rank: i + 1, ...e })))
+        setTotalVolume(Object.values(uv).sort((a: any, b: any) => b.volume - a.volume).map((e: any, i: number) => ({ rank: i + 1, ...e })))
+        const pe: Record<string, any[]> = {}
+        Object.entries(eb).forEach(([eid, users]) => {
+          pe[eid] = Object.values(users).sort((a: any, b: any) => b.weight - a.weight).map((e: any, i: number) => ({ rank: i + 1, ...e }))
+        })
+        setPerExercise(pe); setLoading(false); setMounted(true)
+      })
     })
+  }, [])
 
-    return Object.values(userBest)
-      .sort((a, b) => b.weight - a.weight)
-      .map((entry, i) => ({ rank: i + 1, ...entry }))
-      .slice(0, 50)
-  }
-
-  function computeTotalVolume() {
-    if (!allSets) return []
-    const userVolume: Record<string, { volume: number; username: string; avatar: string }> = {}
-
-    allSets.forEach((s) => {
-      const userId = (s as any).workout_exercises.workouts.user_id
-      const profile = profileMap[userId]
-      if (!profile) return
-      userVolume[userId] = {
-        volume: (userVolume[userId]?.volume ?? 0) + s.reps * Number(s.weight_kg ?? 0),
-        username: profile.username ?? "Unknown",
-        avatar: profile.avatar_url ?? "",
-      }
-    })
-
-    return Object.values(userVolume)
-      .sort((a, b) => b.volume - a.volume)
-      .map((entry, i) => ({ rank: i + 1, ...entry }))
-      .slice(0, 50)
-  }
-
-  const exercisesList = exercises ?? []
-  const categories = [...new Set(exercisesList.map((e) => e.category))]
+  const cats = [...new Set(exercises.map(e => e.category))]
+  const tabs = [{ key: 'max-weight', label: 'MAX WEIGHT' }, { key: 'volume', label: 'TOTAL VOLUME' }, ...cats.map(c => ({ key: `cat-${c}`, label: c.toUpperCase() }))]
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Leaderboards</h1>
-        <p className="text-zinc-400">See who dominates the gym</p>
+    <div className="min-h-screen p-4 md:p-6 lg:p-8 max-w-5xl mx-auto relative">
+      <div style={{ animation: mounted ? 'chalkReveal 0.4s var(--ease-quart) both' : 'none' }}>
+        <h1 className="text-4xl font-black tracking-tighter mb-1" style={{ fontFamily: 'var(--font-heading-stack)' }}>LEADERBOARDS</h1>
+        <p className="label-sm mb-6">WHO DOMINATES THE GYM</p>
       </div>
 
-      <Tabs defaultValue="overall-max" className="space-y-4">
-        <TabsList className="bg-zinc-900 border border-zinc-800 flex-wrap h-auto gap-1">
-          <TabsTrigger value="overall-max" className="data-[state=active]:bg-zinc-800 data-[state=active]:text-white">
-            Max Weight
-          </TabsTrigger>
-          <TabsTrigger value="overall-volume" className="data-[state=active]:bg-zinc-800 data-[state=active]:text-white">
-            Total Volume
-          </TabsTrigger>
-          {categories.map((cat) => (
-            <TabsTrigger key={cat} value={`cat-${cat}`} className="data-[state=active]:bg-zinc-800 data-[state=active]:text-white capitalize">
-              {cat}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-        <TabsContent value="overall-max">
-          <LeaderboardTable data={computeMaxWeight()} valueKey="weight" unit="kg" />
-        </TabsContent>
-
-        <TabsContent value="overall-volume">
-          <LeaderboardTable data={computeTotalVolume()} valueKey="volume" unit="kg" />
-        </TabsContent>
-
-        {categories.map((cat) => (
-          <TabsContent key={`cat-${cat}`} value={`cat-${cat}`}>
-            <div className="space-y-4">
-              {exercisesList
-                .filter((e) => e.category === cat)
-                .map((exercise) => (
-                  <Card key={exercise.id} className="border-zinc-800 bg-zinc-900">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base text-white">{exercise.name}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <LeaderboardTable
-                        data={computeMaxWeight(exercise.id)}
-                        valueKey="weight"
-                        unit="kg"
-                        compact
-                      />
-                    </CardContent>
-                  </Card>
-                ))}
-            </div>
-          </TabsContent>
+      {/* Tab bar */}
+      <div className="flex gap-2 mb-8 flex-wrap">
+        {tabs.map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)}
+            className="px-4 py-2 rounded text-xs tracking-wider uppercase font-medium transition-all"
+            style={{ fontFamily: 'var(--font-mono-stack)', background: tab === t.key ? 'var(--primary)' : 'var(--surface1)', color: tab === t.key ? 'var(--bg)' : 'var(--muted)', border: `1px solid ${tab === t.key ? 'var(--primary)' : 'var(--border)'}` }}>
+            {t.label}
+          </button>
         ))}
-      </Tabs>
+      </div>
+
+      {loading ? <p className="text-sm py-12 text-center" style={{ color: 'var(--muted)' }}>…</p> : (
+        <>
+          {tab === 'max-weight' && <LBTable data={maxWeight} valueKey="weight" unit="kg" showExercise />}
+          {tab === 'volume' && <LBTable data={totalVolume} valueKey="volume" unit="kg" />}
+          {cats.map(c => tab === `cat-${c}` && (
+            <div key={c} className="space-y-4 stagger">
+              {exercises.filter(e => e.category === c).map(ex => (
+                <div key={ex.id} className="card-sheet">
+                  <h3 className="text-base font-bold tracking-tighter p-4 border-b" style={{ fontFamily: 'var(--font-heading-stack)', borderColor: 'var(--border)' }}>{ex.name}</h3>
+                  <div className="p-4"><LBTable data={(perExercise[ex.id] || []).slice(0, 20)} valueKey="weight" unit="kg" compact /></div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </>
+      )}
+
+      {!loading && maxWeight.length === 0 && <p className="text-sm py-12 text-center" style={{ color: 'var(--muted)' }}>No data yet. Log some workouts.</p>}
     </div>
   )
 }
 
-function LeaderboardTable({
-  data,
-  valueKey,
-  unit,
-  compact = false,
-}: {
-  data: any[]
-  valueKey: string
-  unit: string
-  compact?: boolean
-}) {
-  if (data.length === 0) {
-    return <p className="py-8 text-center text-zinc-500">No data yet. Start logging workouts!</p>
-  }
+function LBTable({ data, valueKey, unit, showExercise, compact }: any) {
+  if (!data || data.length === 0) return <p className="text-xs py-8 text-center" style={{ fontFamily: 'var(--font-mono-stack)', color: 'var(--muted)' }}>No rankings yet</p>
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left text-zinc-500">
-            <th className="pb-2 w-12 font-medium">#</th>
-            <th className="pb-2 font-medium">Athlete</th>
-            {!compact && <th className="pb-2 font-medium">Exercise</th>}
-            <th className="pb-2 text-right font-medium">Best</th>
+    <table className="w-full text-sm">
+      <thead>
+        <tr style={{ color: 'var(--muted)' }}>
+          <th className="text-left pb-3 w-12 text-[10px] tracking-widest uppercase font-medium" style={{ fontFamily: 'var(--font-mono-stack)' }}>#</th>
+          <th className="text-left pb-3 text-[10px] tracking-widest uppercase font-medium" style={{ fontFamily: 'var(--font-mono-stack)' }}>ATHLETE</th>
+          {!compact && showExercise && <th className="text-left pb-3 text-[10px] tracking-widest uppercase font-medium" style={{ fontFamily: 'var(--font-mono-stack)' }}>EXERCISE</th>}
+          <th className="text-right pb-3 text-[10px] tracking-widest uppercase font-medium" style={{ fontFamily: 'var(--font-mono-stack)' }}>BEST</th>
+        </tr>
+      </thead>
+      <tbody>
+        {data.map((e: any) => (
+          <tr key={e.rank} className="border-t hover:opacity-70 transition-opacity" style={{ borderColor: 'var(--border)' }}>
+            <td className="py-3">
+              {e.rank === 1 ? <Crown className="h-4 w-4" /> :
+               e.rank === 2 ? <Medal className="h-4 w-4" style={{ color: 'var(--muted)' }} /> :
+               e.rank === 3 ? <Medal className="h-4 w-4" style={{ color: 'var(--secondary)' }} /> :
+               <span style={{ fontFamily: 'var(--font-mono-stack)', color: 'var(--muted)' }}>{e.rank}</span>}
+            </td>
+            <td className="py-3 font-semibold">{e.username}</td>
+            {!compact && showExercise && <td className="py-3" style={{ color: 'var(--muted)' }}>{e.exercise}</td>}
+            <td className="py-3 text-right">
+              <span className="badge-chalk" style={{ background: 'var(--primary)', color: 'var(--bg)' }}>
+                {Math.round(e[valueKey]).toLocaleString()} {unit}
+              </span>
+            </td>
           </tr>
-        </thead>
-        <tbody>
-          {data.map((entry) => (
-            <tr key={entry.rank} className="border-t border-zinc-800 hover:bg-zinc-800/50">
-              <td className="py-3">{rankIcon(entry.rank)}</td>
-              <td className="py-3">
-                <div className="flex items-center gap-2">
-                  <Avatar className="h-7 w-7">
-                    <AvatarFallback className="bg-zinc-700 text-xs">
-                      {entry.username?.slice(0, 2).toUpperCase() ?? "??"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="font-medium text-white">{entry.username}</span>
-                </div>
-              </td>
-              {!compact && <td className="py-3 text-zinc-400">{entry.exercise}</td>}
-              <td className="py-3 text-right">
-                <Badge className="bg-orange-600 text-white">
-                  {Math.round(entry[valueKey]).toLocaleString()} {unit}
-                </Badge>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+        ))}
+      </tbody>
+    </table>
   )
-}
-
-function rankIcon(rank: number) {
-  if (rank === 1) return <Crown className="h-5 w-5 text-yellow-400" />
-  if (rank === 2) return <Medal className="h-5 w-5 text-zinc-300" />
-  if (rank === 3) return <Medal className="h-5 w-5 text-amber-600" />
-  return <span className="font-mono text-sm text-zinc-500">{rank}</span>
 }

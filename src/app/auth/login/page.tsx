@@ -28,71 +28,68 @@ export default function LoginPage() {
     setError("")
     setBusy(true)
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) {
-      setError(error.message)
-      setBusy(false)
-    }
+    if (error) { setError(error.message); setBusy(false) }
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900">
-      <div className="mx-auto w-full max-w-md space-y-8 px-4">
-        <div className="text-center">
-          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 shadow-lg shadow-orange-500/25">
-            <Dumbbell className="h-10 w-10 text-white" />
+    <div className="min-h-screen flex flex-col items-center justify-center px-4">
+      <div className="w-full max-w-md">
+
+        {/* Brand */}
+        <div className="text-center mb-10">
+          <div className="mx-auto mb-6 w-20 h-20 rounded-full border-2 flex items-center justify-center"
+            style={{ borderColor: 'var(--primary)', boxShadow: 'var(--shadow-glow-primary)' }}>
+            <Dumbbell className="h-8 w-8" style={{ color: 'var(--primary)' }} />
           </div>
-          <h1 className="text-4xl font-bold tracking-tight text-white">Pumps</h1>
-          <p className="mt-3 text-lg text-zinc-400">Track. Compete. Dominate.</p>
+          <h1 className="text-5xl font-black tracking-tighter" style={{ fontFamily: 'var(--font-heading-stack)' }}>
+            PUMPS
+          </h1>
+          <p className="mt-2 text-sm tracking-widest uppercase" style={{ fontFamily: 'var(--font-mono-stack)', color: 'var(--primary)' }}>
+            Sign In
+          </p>
         </div>
 
-        <div className="rounded-xl border border-zinc-700/50 bg-zinc-800/50 p-6 backdrop-blur-sm">
-          <form onSubmit={signIn}>
-            <div className="flex flex-col gap-4">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-zinc-300 mb-1">
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                />
-              </div>
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-zinc-300 mb-1">
-                  Password
-                </label>
-                <input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                />
-              </div>
-              {error && (
-                <p className="text-sm text-red-400 bg-red-900/30 rounded-lg px-3 py-2">
-                  {error}
-                </p>
-              )}
-              <button
-                type="submit"
-                disabled={busy}
-                className="h-12 w-full rounded-lg bg-gradient-to-r from-orange-500 to-red-600 text-white font-medium hover:from-orange-600 hover:to-red-700 transition-colors disabled:opacity-50"
-              >
-                {busy ? "Signing in..." : "Sign In"}
-              </button>
+        {/* Form */}
+        <div className="card-sheet p-6">
+          <form onSubmit={signIn} className="flex flex-col gap-5">
+            <div>
+              <label className="label-sm">Email</label>
+              <input
+                type="email" autoComplete="email" required
+                placeholder="you@example.com"
+                value={email} onChange={e => setEmail(e.target.value)}
+                className="input-field"
+              />
             </div>
+
+            <div>
+              <label className="label-sm">Password</label>
+              <input
+                type="password" autoComplete="current-password" required
+                placeholder="••••••••"
+                value={password} onChange={e => setPassword(e.target.value)}
+                className="input-field"
+              />
+            </div>
+
+            {error && (
+              <div className="px-3 py-2 rounded text-xs font-medium" style={{ fontFamily: 'var(--font-mono-stack)', background: 'var(--danger-dim)', color: 'var(--danger)' }}>
+                {error}
+              </div>
+            )}
+
+            <button type="submit" disabled={busy} className="btn-primary w-full">
+              {busy ? "Signing in..." : "Sign In"}
+            </button>
           </form>
         </div>
+
+        <p className="mt-4 text-center text-xs" style={{ fontFamily: 'var(--font-mono-stack)', color: 'var(--muted)' }}>
+          No account?{' '}
+          <a href="https://jchfbpzucylthmgthktj.supabase.co/auth/v1/signup" className="hover:underline" style={{ color: 'var(--primary)' }}>
+            Create one on Flip →
+          </a>
+        </p>
       </div>
     </div>
   )

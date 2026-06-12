@@ -1,197 +1,122 @@
-"use client"
+'use client'
 
-import { useEffect, useState } from "react"
-import { createClient } from "@/lib/supabase/client"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, Legend,
-} from "recharts"
-import { TrendingUp, Dumbbell } from "lucide-react"
-
-interface SetData {
-  date: string
-  weight_kg: number
-  reps: number
-  volume: number
-  exercise_name: string
-}
-
-interface VolumeByPeriod {
-  period: string
-  volume: number
-}
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts'
+import { Dumbbell, TrendingUp } from 'lucide-react'
 
 export default function ProgressPage() {
-  const [exerciseList, setExerciseList] = useState<string[]>([])
-  const [selectedExercise, setSelectedExercise] = useState("")
-  const [maxWeightData, setMaxWeightData] = useState<SetData[]>([])
-  const [volumeByWeek, setVolumeByWeek] = useState<VolumeByPeriod[]>([])
-  const [loading, setLoading] = useState(true)
-  const supabase = createClient()
+  const [exercises, setExercises] = useState<string[]>([])
+  const [selected, setSelected] = useState('')
+  const [maxWeight, setMaxWeight] = useState<any[]>([])
+  const [volume, setVolume] = useState<any[]>([])
+  const [tab, setTab] = useState<'weight' | 'volume'>('weight')
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    async function load() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { setLoading(false); return }
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) return
+      supabase.from('exercise_sets').select(`
+        reps, weight_kg, created_at, workout_exercises!inner(exercises!inner(name), workouts!inner(started_at))
+      `).eq('completed', true).eq('workout_exercises.workouts.user_id', data.user.id)
+        .order('created_at', { ascending: true }).then(({ data }) => {
+          const uniq = [...new Set((data ?? []).map((d: any) => d.workout_exercises.exercises.name))] as string[]
+          setExercises(uniq)
+          if (uniq.length > 0) setSelected(uniq[0])
 
-      const { data } = await supabase
-        .from("exercise_sets")
-        .select(`
-          reps, weight_kg, created_at,
-          workout_exercises!inner(exercises!inner(name), workouts!inner(started_at))
-        `)
-        .eq("completed", true)
-        .eq("workout_exercises.workouts.user_id", user.id)
-        .order("created_at", { ascending: true })
+          const all: any[] = (data ?? []).map((r: any) => ({
+            date: new Date(r.workout_exercises.workouts.started_at).toLocaleDateString(),
+            weight_kg: r.weight_kg ?? 0, reps: r.reps,
+            volume: r.reps * (r.weight_kg ?? 0),
+            exercise: r.workout_exercises.exercises.name,
+          }))
 
-      const typedData = (data ?? []) as any[]
+          const mwd: any[] = []; const seen: Record<string, number> = {}
+          all.forEach((d: any) => {
+            const k = `${d.date}|${d.exercise}`
+            if (!seen[k] || d.weight_kg > seen[k]) { seen[k] = d.weight_kg; mwd.push(d) }
+          })
+          setMaxWeight(mwd.sort((a: any, b: any) => a.date.localeCompare(b.date)))
 
-      const uniqueExercises = [...new Set(typedData.map((d: any) => d.workout_exercises.exercises.name))] as string[]
-      setExerciseList(uniqueExercises)
-      if (uniqueExercises.length > 0) setSelectedExercise(uniqueExercises[0])
-
-      const allData: { date: string; weight_kg: number; reps: number; volume: number; exercise_name: string }[] = typedData.map((row: any) => ({
-        date: new Date(row.workout_exercises.workouts.started_at).toLocaleDateString(),
-        weight_kg: row.weight_kg ?? 0,
-        reps: row.reps,
-        volume: row.reps * (row.weight_kg ?? 0),
-        exercise_name: row.workout_exercises.exercises.name,
-      }))
-
-      const maxByDate: Record<string, SetData> = {}
-      allData.forEach((d) => {
-        const key = `${d.date}|${d.exercise_name}`
-        if (!maxByDate[key] || d.weight_kg > maxByDate[key].weight_kg) {
-          maxByDate[key] = d
-        }
-      })
-      setMaxWeightData(Object.values(maxByDate).sort((a, b) => a.date.localeCompare(b.date)))
-
-      const volByWeek: Record<string, number> = {}
-      allData.forEach((d) => {
-        const date = new Date(d.date)
-        const weekStart = new Date(date)
-        weekStart.setDate(date.getDate() - date.getDay())
-        const key = weekStart.toLocaleDateString()
-        volByWeek[key] = (volByWeek[key] || 0) + d.volume
-      })
-      setVolumeByWeek(
-        Object.entries(volByWeek)
-          .map(([period, volume]) => ({ period, volume: Math.round(volume) }))
-          .sort((a, b) => a.period.localeCompare(b.period))
-      )
-
-      setLoading(false)
-    }
-
-    load()
+          const vw: Record<string, number> = {}
+          all.forEach((d: any) => {
+            const dt = new Date(d.date.replace(/\//g, '-'))
+            dt.setDate(dt.getDate() - dt.getDay())
+            vw[dt.toLocaleDateString()] = (vw[dt.toLocaleDateString()] || 0) + d.volume
+          })
+          setVolume(Object.entries(vw).map(([p, v]) => ({ period: p, volume: Math.round(v) })).sort((a, b) => a.period.localeCompare(b.period)))
+          setMounted(true)
+        })
+    })
   }, [])
 
-  const filteredMaxWeight = maxWeightData.filter((d) => d.exercise_name === selectedExercise)
-
-  if (loading) return <div className="py-12 text-center text-zinc-500">Loading progress data...</div>
+  const filtered = maxWeight.filter((d: any) => d.exercise === selected)
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Progress Tracker</h1>
-        <p className="text-zinc-400">Visualize your strength gains over time</p>
+    <div className="min-h-screen p-4 md:p-6 lg:p-8 max-w-5xl mx-auto relative">
+      <div style={{ animation: mounted ? 'chalkReveal 0.4s var(--ease-quart) both' : 'none' }}>
+        <h1 className="text-4xl font-black tracking-tighter mb-1" style={{ fontFamily: 'var(--font-heading-stack)' }}>PROGRESS</h1>
+        <p className="label-sm mb-6">STRENGTH OVER TIME</p>
       </div>
 
-      <Tabs defaultValue="max-weight" className="space-y-4">
-        <TabsList className="bg-zinc-900 border border-zinc-800">
-          <TabsTrigger value="max-weight" className="data-[state=active]:bg-zinc-800 data-[state=active]:text-white">
-            <Dumbbell className="mr-2 h-4 w-4" />
-            Max Weight
-          </TabsTrigger>
-          <TabsTrigger value="volume" className="data-[state=active]:bg-zinc-800 data-[state=active]:text-white">
-            <TrendingUp className="mr-2 h-4 w-4" />
-            Weekly Volume
-          </TabsTrigger>
-        </TabsList>
+      <div className="flex gap-2 mb-8">
+        {[
+          { key: 'weight' as const, label: 'MAX WEIGHT', icon: Dumbbell },
+          { key: 'volume' as const, label: 'WEEKLY VOLUME', icon: TrendingUp },
+        ].map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)}
+            className="flex items-center gap-2 px-4 py-2 rounded text-xs tracking-wider uppercase font-medium transition-all"
+            style={{ fontFamily: 'var(--font-mono-stack)', background: tab === t.key ? 'var(--primary)' : 'var(--surface1)', color: tab === t.key ? 'var(--bg)' : 'var(--muted)', border: `1px solid ${tab === t.key ? 'var(--primary)' : 'var(--border)'}` }}>
+            <t.icon className="h-4 w-4" /> {t.label}
+          </button>
+        ))}
+      </div>
 
-        <TabsContent value="max-weight">
-          <Card className="border-zinc-800 bg-zinc-900">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-white">Max Weight Progression</CardTitle>
-              <Select value={selectedExercise} onValueChange={(v) => v && setSelectedExercise(v)}>
-                <SelectTrigger className="w-48 border-zinc-700 bg-zinc-800 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="border-zinc-700 bg-zinc-900 text-white">
-                  {exerciseList.map((ex) => (
-                    <SelectItem key={ex} value={ex}>{ex}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </CardHeader>
-            <CardContent>
-              {filteredMaxWeight.length > 0 ? (
-                <div className="h-[400px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={filteredMaxWeight}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                      <XAxis dataKey="date" stroke="#666" fontSize={12} />
-                      <YAxis stroke="#666" fontSize={12} />
-                      <Tooltip
-                        contentStyle={{ background: "#18181b", border: "1px solid #333", borderRadius: "8px" }}
-                        labelStyle={{ color: "#fff" }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="weight_kg"
-                        stroke="#f97316"
-                        strokeWidth={2}
-                        dot={{ fill: "#f97316", r: 4 }}
-                        name="Weight (kg)"
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <p className="py-12 text-center text-zinc-500">No data for this exercise yet</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+      {tab === 'weight' && (
+        <div className="card-sheet p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-bold tracking-tighter" style={{ fontFamily: 'var(--font-heading-stack)' }}>MAX WEIGHT</h3>
+            <select value={selected} onChange={e => setSelected(e.target.value)}
+              className="text-xs px-3 py-1.5 rounded border outline-none"
+              style={{ fontFamily: 'var(--font-mono-stack)', background: 'var(--surface1)', color: 'var(--fg)', borderColor: 'var(--border)' }}>
+              {exercises.map(ex => <option key={ex}>{ex}</option>)}
+            </select>
+          </div>
+          {filtered.length > 0 ? (
+            <div className="h-[350px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={filtered}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="date" stroke="var(--muted)" fontSize={10} />
+                  <YAxis stroke="var(--muted)" fontSize={10} />
+                  <Tooltip contentStyle={{ background: 'var(--surface0)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', fontFamily: 'var(--font-mono-stack)' }} />
+                  <Line type="monotone" dataKey="weight_kg" stroke="var(--primary)" strokeWidth={2} dot={{ fill: 'var(--primary)', r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ) : <p className="text-xs py-8 text-center" style={{ fontFamily: 'var(--font-mono-stack)', color: 'var(--muted)' }}>No data for {selected}</p>}
+        </div>
+      )}
 
-        <TabsContent value="volume">
-          <Card className="border-zinc-800 bg-zinc-900">
-            <CardHeader>
-              <CardTitle className="text-white">Total Volume Per Week</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {volumeByWeek.length > 0 ? (
-                <div className="h-[400px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={volumeByWeek}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                      <XAxis dataKey="period" stroke="#666" fontSize={12} />
-                      <YAxis stroke="#666" fontSize={12} />
-                      <Tooltip
-                        contentStyle={{ background: "#18181b", border: "1px solid #333", borderRadius: "8px" }}
-                        labelStyle={{ color: "#fff" }}
-                      />
-                      <Bar dataKey="volume" fill="url(#volumeGradient)" radius={[4, 4, 0, 0]} name="Volume (kg)" />
-                      <defs>
-                        <linearGradient id="volumeGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#f97316" />
-                          <stop offset="100%" stopColor="#dc2626" />
-                        </linearGradient>
-                      </defs>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <p className="py-12 text-center text-zinc-500">Log some workouts to see volume charts</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      {tab === 'volume' && (
+        <div className="card-sheet p-5">
+          <h3 className="text-base font-bold tracking-tighter mb-4" style={{ fontFamily: 'var(--font-heading-stack)' }}>WEEKLY VOLUME</h3>
+          {volume.length > 0 ? (
+            <div className="h-[350px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={volume}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="period" stroke="var(--muted)" fontSize={10} />
+                  <YAxis stroke="var(--muted)" fontSize={10} />
+                  <Tooltip contentStyle={{ background: 'var(--surface0)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', fontFamily: 'var(--font-mono-stack)' }} />
+                  <Bar dataKey="volume" fill="var(--primary)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : <p className="text-xs py-8 text-center" style={{ fontFamily: 'var(--font-mono-stack)', color: 'var(--muted)' }}>Log workouts to see volume charts</p>}
+        </div>
+      )}
     </div>
   )
 }

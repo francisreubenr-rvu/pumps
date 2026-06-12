@@ -1,47 +1,48 @@
 import type { Metadata } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
+import { Barlow, Barlow_Condensed, Space_Mono } from "next/font/google"
 import "./globals.css"
-import { SidebarNav } from "@/components/layout/sidebar-nav"
-import { UserMenu } from "@/components/layout/user-menu"
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const barlowCondensed = Barlow_Condensed({
+  variable: "--font-heading",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
 })
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const barlow = Barlow({
+  variable: "--font-body",
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+})
+
+const spaceMono = Space_Mono({
+  variable: "--font-mono",
+  subsets: ["latin"],
+  weight: ["400", "700"],
 })
 
 export const metadata: Metadata = {
   title: "Pumps — Gym Journaling",
-  description: "Track workouts, compete with friends, and see your progress on the leaderboard.",
+  description: "Track workouts. Compete with friends. Dominate the leaderboard.",
 }
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}>
-      <body className="min-h-full bg-zinc-950 text-zinc-100">
-        <div className="flex min-h-full">
-          <SidebarNav />
-          <div className="flex flex-1 flex-col lg:pl-64">
-            <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-zinc-800 bg-zinc-950/80 px-4 backdrop-blur-sm lg:px-6">
-              <div className="flex items-center gap-3 lg:hidden">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-red-600">
-                  <span className="text-sm font-bold text-white">P</span>
-                </div>
-                <span className="text-lg font-bold text-white">Pumps</span>
-              </div>
-              <div className="ml-auto">
-                <UserMenu />
-              </div>
-            </header>
-            <main className="flex-1 p-4 lg:p-6">{children}</main>
-          </div>
+    <html
+      lang="en"
+      className={`${barlowCondensed.variable} ${barlow.variable} ${spaceMono.variable} dark h-full antialiased`}
+    >
+      <body className="min-h-full relative">
+        {/* Ambient muscle-group blobs — from Fox */}
+        <div className="blob-bg" aria-hidden="true">
+          <div className="blob blob-push" />
+          <div className="blob blob-pull" />
+          <div className="blob blob-legs" />
+          <div className="blob blob-core" />
         </div>
+        <div className="grain" aria-hidden="true" />
+        <div className="relative z-10 min-h-full">{children}</div>
       </body>
     </html>
   )
