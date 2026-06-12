@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 
 export default function OnboardingPage() {
@@ -16,7 +17,7 @@ export default function OnboardingPage() {
       const { data: p } = await supabase.from("profiles").select("username").eq("id", data.user.id).single()
       if (p?.username) router.replace("/dashboard")
     })
-  }, [])
+  }, [router])
 
   async function save(e: React.FormEvent) {
     e.preventDefault(); if (!username || username.length < 3) return; setBusy(true)
@@ -28,16 +29,21 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div style={{ backgroundColor: "#050505", minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 24 }}>
+    <div style={{ backgroundColor: "var(--bg)", minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 24 }}>
       <div style={{ maxWidth: 400, width: "100%" }}>
         <div style={{ textAlign: "center", marginBottom: 40 }}>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 48, fontWeight: 600, letterSpacing: "-0.02em", textTransform: "uppercase", color: "#ffffff", lineHeight: 1 }}>WELCOME</h1>
-          <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "#ccff00", marginTop: 8 }}>CHOOSE YOUR NAME</p>
+          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 48, fontWeight: 600, letterSpacing: "-0.02em", textTransform: "uppercase", color: "var(--fg)", lineHeight: 1 }}>Welcome</h1>
+          <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--accent)", marginTop: 8 }}>Choose Your Name</p>
         </div>
         <div className="card-elevated" style={{ padding: 32 }}>
           <form onSubmit={save} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            <div><label className="label-sm">USERNAME</label><input type="text" required minLength={3} maxLength={30} placeholder="your_gym_name" value={username} onChange={e => setUsername(e.target.value)} className="input-field" /></div>
-            <button type="submit" disabled={busy || username.length < 3} className="btn-primary" style={{ width: "100%", justifyContent: "center", padding: "14px 0" }}>{busy ? "SAVING..." : "LET'S GO"}</button>
+            <div>
+              <label htmlFor="onboard-username" className="label-sm">USERNAME</label>
+              <input id="onboard-username" name="username" type="text" required minLength={3} maxLength={30} placeholder="your_gym_name" value={username} onChange={e => setUsername(e.target.value)} className="input-field" />
+            </div>
+            <button type="submit" disabled={busy || username.length < 3} className="btn-primary" style={{ width: "100%", justifyContent: "center", padding: "14px 0" }}>
+              {busy ? "Saving…" : "Let's Go"}
+            </button>
           </form>
         </div>
       </div>

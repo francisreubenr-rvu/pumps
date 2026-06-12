@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useRef } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { Dumbbell, TrendingUp, Swords, Plus, Activity, Zap, Heart, ChevronRight, Clock } from "lucide-react"
+import { Dumbbell, TrendingUp, Swords, Plus, Activity, Zap, ChevronRight, Clock } from "lucide-react"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts"
 
 function ScrambleCounter({ value, label, unit, icon: Icon, delay }: {
@@ -13,6 +13,9 @@ function ScrambleCounter({ value, label, unit, icon: Icon, delay }: {
   const ref = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
   const [display, setDisplay] = useState("0")
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => { setMounted(true) }, [])
 
   useEffect(() => {
     const el = ref.current; if (!el) return
@@ -22,47 +25,62 @@ function ScrambleCounter({ value, label, unit, icon: Icon, delay }: {
   }, [])
 
   useEffect(() => {
-    if (!visible) return
+    if (!visible || !mounted) return
+    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    if (prefersReduced) { setDisplay(String(value)); return }
+
     const timer = setTimeout(() => {
-      const target = value
-      let current = 0
-      const steps = 20
-      const interval = 30
-      let step = 0
+      let current = 0; const steps = 20; const interval = 30; let step = 0
       const t = setInterval(() => {
-        step++
-        current = Math.floor((target * step) / steps)
+        step++; current = Math.floor((value * step) / steps)
         setDisplay(String(current))
-        if (step >= steps) { setDisplay(String(target)); clearInterval(t) }
+        if (step >= steps) { setDisplay(String(value)); clearInterval(t) }
       }, interval)
       return () => clearInterval(t)
     }, delay)
     return () => clearTimeout(timer)
-  }, [visible, value, delay])
+  }, [visible, value, delay, mounted])
 
   return (
     <div ref={ref} className="card-surface" style={{ padding: 24 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <Icon size={14} style={{ color: "#ccff00" }} />
-        <span style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "#8d8d8d" }}>{label}</span>
+        <Icon size={14} style={{ color: "var(--accent)" }} aria-hidden="true" />
+        <span style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-secondary)" }}>{label}</span>
       </div>
       <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-        <span style={{ fontFamily: "var(--font-heading-stack)", fontSize: 36, fontWeight: 700, letterSpacing: "-0.04em", color: "#ffffff", lineHeight: 1 }}>{display}</span>
-        {unit && <span style={{ fontFamily: "var(--font-heading-stack)", fontSize: 14, fontWeight: 500, color: "#8d8d8d", textTransform: "uppercase" }}>{unit}</span>}
+        <span aria-live="polite" style={{ fontFamily: "var(--font-heading-stack)", fontSize: 36, fontWeight: 700, letterSpacing: "-0.04em", color: "var(--fg)", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{display}</span>
+        {unit && <span style={{ fontFamily: "var(--font-heading-stack)", fontSize: 14, fontWeight: 500, color: "var(--text-secondary)", textTransform: "uppercase" }}>{unit}</span>}
       </div>
     </div>
   )
 }
 
+function NavLink({ href, label, pathname }: { href: string; label: string; pathname: string }) {
+  const isActive = pathname === href || pathname.startsWith(href + "/")
+  return (
+    <Link
+      href={href}
+      style={{
+        fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em",
+        textTransform: "uppercase", color: isActive ? "var(--accent)" : "var(--text-secondary)",
+        textDecoration: "none", padding: "8px 14px", transition: "color 100ms",
+      }}
+    >
+      {label}
+    </Link>
+  )
+}
+
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
-  const router = useRouter()
   const [workoutCount, setWorkoutCount] = useState(0)
   const [volume, setVolume] = useState(0)
   const [recentWorkouts, setRecentWorkouts] = useState<any[]>([])
   const [activeComps, setActiveComps] = useState<any[]>([])
   const [volumeHistory, setVolumeHistory] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
+  const pathname = usePathname()
 
   useEffect(() => {
     const supabase = createClient()
@@ -70,40 +88,35 @@ export default function DashboardPage() {
       if (!data.user) { router.replace("/auth/login"); return }
       setUser(data.user)
     })
-  }, [])
+  }, [router])
 
   useEffect(() => {
     if (!user) return
     const supabase = createClient()
-    supabase.from("workouts").select("*", { count: "exact", head: true }).eq("user_id", user.id).then(({ count }) => setWorkoutCount(count ?? 0))
-    supabase.from("exercise_sets")
-      .select("reps, weight_kg, workout_exercises!inner(workout_id, workouts!inner(user_id))")
-      .eq("workout_exercises.workouts.user_id", user.id).eq("completed", true)
-      .then(({ data }) => setVolume(data?.reduce((s: number, r: any) => s + (r.reps * (r.weight_kg ?? 0)), 0) ?? 0))
-    supabase.from("workouts").select("*").eq("user_id", user.id).order("started_at", { ascending: false }).limit(6)
-      .then(({ data }) => { setRecentWorkouts(data ?? []); setLoading(false) })
-    supabase.from("competitions").select("*, exercises(name)").eq("status", "active").limit(4)
-      .then(({ data }) => setActiveComps(data ?? []))
 
-    // Build volume history
-    supabase.from("exercise_sets")
-      .select("reps, weight_kg, created_at, workout_exercises!inner(workouts!inner(started_at))")
-      .eq("completed", true)
-      .eq("workout_exercises.workouts.user_id", user.id)
-      .order("created_at", { ascending: true })
-      .then(({ data }) => {
-        const weekly: Record<string, { volume: number; workouts: number }> = {}
-        ;(data ?? []).forEach((r: any) => {
-          const d = new Date(r.workout_exercises.workouts.started_at)
-          d.setDate(d.getDate() - d.getDay())
-          const k = d.toISOString().slice(0, 10)
-          if (!weekly[k]) weekly[k] = { volume: 0, workouts: 0 }
-          weekly[k].volume += r.reps * (r.weight_kg ?? 0)
-          weekly[k].workouts = Math.max(weekly[k].workouts, 1)
-        })
-        const hist = Object.entries(weekly).map(([week, v]) => ({ week, ...v })).slice(-8)
-        setVolumeHistory(hist)
+    Promise.all([
+      supabase.from("workouts").select("*", { count: "exact", head: true }).eq("user_id", user.id),
+      supabase.from("exercise_sets").select("reps, weight_kg, workout_exercises!inner(workout_id, workouts!inner(user_id))").eq("workout_exercises.workouts.user_id", user.id).eq("completed", true),
+      supabase.from("workouts").select("*").eq("user_id", user.id).order("started_at", { ascending: false }).limit(6),
+      supabase.from("competitions").select("*, exercises(name)").eq("status", "active").limit(4),
+      supabase.from("exercise_sets").select("reps, weight_kg, created_at, workout_exercises!inner(workouts!inner(started_at))").eq("completed", true).eq("workout_exercises.workouts.user_id", user.id).order("created_at", { ascending: true }),
+    ]).then(([wc, vol, rw, ac, vh]) => {
+      setWorkoutCount(wc.count ?? 0)
+      setVolume(vol.data?.reduce((s: number, r: any) => s + (r.reps * (r.weight_kg ?? 0)), 0) ?? 0)
+      setRecentWorkouts(rw.data ?? [])
+      setActiveComps(ac.data ?? [])
+      setLoading(false)
+
+      const weekly: Record<string, { volume: number }> = {}
+      ;(vh.data ?? []).forEach((r: any) => {
+        const d = new Date(r.workout_exercises.workouts.started_at)
+        d.setDate(d.getDate() - d.getDay())
+        const k = d.toISOString().slice(0, 10)
+        if (!weekly[k]) weekly[k] = { volume: 0 }
+        weekly[k].volume += r.reps * (r.weight_kg ?? 0)
       })
+      setVolumeHistory(Object.entries(weekly).map(([week, v]) => ({ week, ...v })).slice(-8))
+    })
   }, [user])
 
   const demoVolume = volumeHistory.length > 0 ? volumeHistory : [
@@ -113,73 +126,68 @@ export default function DashboardPage() {
   ]
 
   return (
-    <div style={{ backgroundColor: "#050505", minHeight: "100vh" }}>
-      {/* Header */}
-      <header style={{ position: "sticky", top: 0, zIndex: 50, backgroundColor: "rgba(5,5,5,0.95)", backdropFilter: "blur(10px)", borderBottom: "1px solid #1a1a1a" }}>
+    <div style={{ backgroundColor: "var(--bg)", minHeight: "100vh" }}>
+      <header style={{ position: "sticky", top: 0, zIndex: 50, backgroundColor: "oklch(0.14 0.005 260 / 0.95)", backdropFilter: "blur(10px)", borderBottom: "1px solid var(--border)" }}>
         <div style={{ maxWidth: 1280, margin: "0 auto", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px" }}>
-          <Link href="/" style={{ fontFamily: "var(--font-heading-stack)", fontSize: 16, fontWeight: 700, letterSpacing: "-0.04em", textTransform: "uppercase", color: "#ffffff", textDecoration: "none" }}>PUMPS</Link>
+          <Link href="/" style={{ fontFamily: "var(--font-heading-stack)", fontSize: 16, fontWeight: 700, letterSpacing: "-0.04em", textTransform: "uppercase", color: "var(--fg)", textDecoration: "none" }}>
+            PUMPS
+          </Link>
           <nav style={{ display: "flex", alignItems: "center", gap: 2 }}>
             {[
-              { href: "/dashboard", label: "DASHBOARD" },
-              { href: "/workouts/new", label: "LOG" },
-              { href: "/competitions", label: "COMPETE" },
-              { href: "/leaderboard", label: "RANKS" },
-              { href: "/progress", label: "PROGRESS" },
+              { href: "/dashboard", label: "Dashboard" },
+              { href: "/workouts/new", label: "Log" },
+              { href: "/competitions", label: "Compete" },
+              { href: "/leaderboard", label: "Ranks" },
+              { href: "/progress", label: "Progress" },
             ].map(l => (
-              <Link key={l.href} href={l.href} style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "#8d8d8d", textDecoration: "none", padding: "8px 14px", transition: "color 0.1s" }}>
-                {l.label}
-              </Link>
+              <NavLink key={l.href} href={l.href} label={l.label} pathname={pathname} />
             ))}
             <Link href="/workouts/new" className="btn-primary" style={{ marginLeft: 12, fontSize: 12, padding: "8px 16px" }}>
-              <Plus size={14} /> LOG
+              <Plus size={14} aria-hidden="true" /> LOG
             </Link>
           </nav>
         </div>
       </header>
 
-      {/* Main */}
       <main style={{ maxWidth: 1280, margin: "0 auto", padding: "40px 24px" }}>
-        {/* Hero banner */}
         <div style={{ marginBottom: 48 }}>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(40px, 6vw, 64px)", fontWeight: 600, letterSpacing: "-0.02em", textTransform: "uppercase", color: "#ffffff", lineHeight: 1.05 }}>
-            {user?.user_metadata?.display_name || user?.email?.split("@")[0] || "ATHLETE"}
+          <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(40px, 6vw, 64px)", fontWeight: 600, letterSpacing: "-0.02em", textTransform: "uppercase", color: "var(--fg)", lineHeight: 1.05, fontVariantNumeric: "tabular-nums" }}>
+            {user?.user_metadata?.display_name || user?.email?.split("@")[0] || "Athlete"}
           </h1>
-          <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 13, fontWeight: 500, letterSpacing: "0.06em", textTransform: "uppercase", color: "#ccff00", marginTop: 4 }}>
+          <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 13, fontWeight: 500, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--accent)", marginTop: 4 }}>
             OVERVIEW
           </p>
         </div>
 
-        {/* Stats grid */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 2, marginBottom: 48 }}>
           <ScrambleCounter value={workoutCount} label="WORKOUTS" icon={Zap} delay={100} />
           <ScrambleCounter value={volume} label="TOTAL VOLUME" unit="KG" icon={TrendingUp} delay={200} />
           <ScrambleCounter value={activeComps.length} label="LIVE COMPS" icon={Swords} delay={300} />
           <div className="card-surface" style={{ padding: 24 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-              <Activity size={14} style={{ color: "#ccff00" }} />
-              <span style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "#8d8d8d" }}>STATUS</span>
+              <Activity size={14} style={{ color: "var(--accent)" }} aria-hidden="true" />
+              <span style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-secondary)" }}>STATUS</span>
             </div>
-            <span style={{ fontFamily: "var(--font-heading-stack)", fontSize: 14, fontWeight: 700, letterSpacing: "-0.02em", color: loading ? "#8d8d8d" : "#ccff00", textTransform: "uppercase" }}>
-              {loading ? "LOADING" : "READY"}
+            <span style={{ fontFamily: "var(--font-heading-stack)", fontSize: 14, fontWeight: 700, letterSpacing: "-0.02em", color: loading ? "var(--text-secondary)" : "var(--accent)", textTransform: "uppercase" }}>
+              {loading ? "Loading…" : "Ready"}
             </span>
           </div>
         </div>
 
-        {/* Volume chart */}
         <div className="card-surface" style={{ padding: 24, marginBottom: 48 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-            <h3 style={{ fontFamily: "var(--font-heading-stack)", fontSize: 14, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "#ffffff" }}>VOLUME HISTORY</h3>
-            <span style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 500, letterSpacing: "0.05em", textTransform: "uppercase", color: "#8d8d8d" }}>LAST 8 WEEKS</span>
+            <h3 style={{ fontFamily: "var(--font-heading-stack)", fontSize: 14, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--fg)" }}>Volume History</h3>
+            <span style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 500, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--text-secondary)" }}>LAST 8 WEEKS</span>
           </div>
-          <div style={{ height: 200 }}>
+          <div style={{ height: 200 }} aria-hidden="true">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={demoVolume}>
-                <XAxis dataKey="week" stroke="#8d8d8d" fontSize={10} />
-                <YAxis stroke="#8d8d8d" fontSize={10} />
-                <Tooltip contentStyle={{ background: "#111", border: "1px solid #1a1a1a", borderRadius: 0, fontSize: 12, fontFamily: "var(--font-heading-stack)" }} />
+                <XAxis dataKey="week" stroke="var(--text-secondary)" fontSize={10} />
+                <YAxis stroke="var(--text-secondary)" fontSize={10} />
+                <Tooltip contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 0, fontSize: 12, fontFamily: "var(--font-heading-stack)" }} />
                 <Bar dataKey="volume" radius={[0, 0, 0, 0]}>
                   {demoVolume.map((_, i) => (
-                    <Cell key={i} fill={i === demoVolume.length - 1 ? "#ccff00" : "#1a1a1a"} />
+                    <Cell key={i} fill={i === demoVolume.length - 1 ? "var(--accent)" : "var(--surface-elevated)"} />
                   ))}
                 </Bar>
               </BarChart>
@@ -187,65 +195,64 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Recent workouts */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, marginBottom: 48 }}>
           <div className="card-surface" style={{ padding: 24 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-              <h3 style={{ fontFamily: "var(--font-heading-stack)", fontSize: 14, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "#ffffff" }}>RECENT WORKOUTS</h3>
-              <Link href="/workouts" style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "#ccff00", textDecoration: "none" }}>
-                VIEW ALL <ChevronRight size={12} style={{ display: "inline" }} />
+              <h3 style={{ fontFamily: "var(--font-heading-stack)", fontSize: 14, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--fg)" }}>Recent Workouts</h3>
+              <Link href="/workouts" style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--accent)", textDecoration: "none" }}>
+                View all <ChevronRight size={12} style={{ display: "inline" }} />
               </Link>
             </div>
             {recentWorkouts.length > 0 ? (
               <div className="stagger">
                 {recentWorkouts.map(w => (
-                  <Link key={w.id} href={`/workouts/${w.id}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid #1a1a1a", textDecoration: "none" }}>
+                  <Link key={w.id} href={`/workouts/${w.id}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid var(--border)", textDecoration: "none" }}>
                     <div>
-                      <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 13, fontWeight: 600, letterSpacing: "-0.02em", color: "#ffffff", textTransform: "uppercase" }}>{w.name}</p>
-                      <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 500, letterSpacing: "0.03em", color: "#8d8d8d", marginTop: 2 }}>
-                        <Clock size={11} style={{ display: "inline", marginRight: 4 }} />
+                      <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 13, fontWeight: 600, letterSpacing: "-0.02em", color: "var(--fg)", textTransform: "uppercase" }}>{w.name}</p>
+                      <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 500, letterSpacing: "0.03em", color: "var(--text-secondary)", marginTop: 2 }}>
+                        <Clock size={11} style={{ display: "inline", marginRight: 4 }} aria-hidden="true" />
                         {new Date(w.started_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                       </p>
                     </div>
-                    <span className="badge" style={{ background: w.completed_at ? "#ccff00" : "#1a1a1a", color: w.completed_at ? "#050505" : "#8d8d8d" }}>
-                      {w.completed_at ? "DONE" : "ACTIVE"}
+                    <span className="badge" style={{ background: w.completed_at ? "var(--accent)" : "var(--surface-elevated)", color: w.completed_at ? "var(--bg)" : "var(--text-secondary)" }}>
+                      {w.completed_at ? "DONE" : "Active"}
                     </span>
                   </Link>
                 ))}
               </div>
             ) : (
-              <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, color: "#8d8d8d", padding: "20px 0", textAlign: "center" }}>No workouts yet</p>
+              <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, color: "var(--text-secondary)", padding: "20px 0", textAlign: "center" }}>No workouts yet</p>
             )}
           </div>
 
           <div className="card-surface" style={{ padding: 24 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-              <h3 style={{ fontFamily: "var(--font-heading-stack)", fontSize: 14, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "#ffffff" }}>ACTIVE COMPETITIONS</h3>
-              <Link href="/competitions" style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "#ccff00", textDecoration: "none" }}>
-                VIEW ALL <ChevronRight size={12} style={{ display: "inline" }} />
+              <h3 style={{ fontFamily: "var(--font-heading-stack)", fontSize: 14, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--fg)" }}>Active Competitions</h3>
+              <Link href="/competitions" style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--accent)", textDecoration: "none" }}>
+                View all <ChevronRight size={12} style={{ display: "inline" }} />
               </Link>
             </div>
             {activeComps.length > 0 ? (
               <div className="stagger">
                 {activeComps.map((c: any) => (
-                  <Link key={c.id} href={`/competitions/${c.id}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid #1a1a1a", textDecoration: "none" }}>
+                  <Link key={c.id} href={`/competitions/${c.id}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 0", borderBottom: "1px solid var(--border)", textDecoration: "none" }}>
                     <div>
-                      <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 13, fontWeight: 600, letterSpacing: "-0.02em", color: "#ffffff", textTransform: "uppercase" }}>{c.name}</p>
-                      <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 500, letterSpacing: "0.03em", color: "#8d8d8d", marginTop: 2 }}>
+                      <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 13, fontWeight: 600, letterSpacing: "-0.02em", color: "var(--fg)", textTransform: "uppercase" }}>{c.name}</p>
+                      <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 500, letterSpacing: "0.03em", color: "var(--text-secondary)", marginTop: 2 }}>
                         {c.exercises?.name} — {c.type?.replace("_", " ")}
                       </p>
                     </div>
-                    <span className="badge" style={{ background: "#ccff00", color: "#050505", display: "flex", alignItems: "center", gap: 4 }}>
-                      <span className="status-dot active" /> LIVE
+                    <span className="badge" style={{ background: "var(--accent)", color: "var(--bg)", display: "flex", alignItems: "center", gap: 4 }}>
+                      <span className="status-dot active" aria-hidden="true" /> LIVE
                     </span>
                   </Link>
                 ))}
               </div>
             ) : (
               <div style={{ textAlign: "center", padding: "20px 0" }}>
-                <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, color: "#8d8d8d" }}>No active competitions</p>
-                <Link href="/competitions/new" style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", color: "#ccff00", textDecoration: "none", display: "inline-block", marginTop: 8 }}>
-                  CREATE ONE
+                <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, color: "var(--text-secondary)" }}>No active competitions</p>
+                <Link href="/competitions/new" style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", color: "var(--accent)", textDecoration: "none", display: "inline-block", marginTop: 8 }}>
+                  Create One
                 </Link>
               </div>
             )}

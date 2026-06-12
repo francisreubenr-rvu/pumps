@@ -35,13 +35,16 @@ export default function CompetitionDetailClient() {
 
   useEffect(() => {
     if (!id) return
-    const ch = createClient().channel(`comp:${id}`)
+    const supabase = createClient()
+    const ch = supabase.channel(`comp:${id}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "competition_logs", filter: `competition_id=eq.${id}` }, (p: any) => setLogs(prev => [...prev, p.new]))
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "competitions", filter: `id=eq.${id}` }, (p: any) => setComp((prev: any) => prev ? { ...prev, status: p.new.status } : prev))
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "competition_participants", filter: `competition_id=eq.${id}` }, () => load())
-      .subscribe()
-    return () => { ch.unsubscribe() }
-  }, [id])
+      .subscribe((status) => {
+        if (status === "CLOSED" || status === "CHANNEL_ERROR") console.warn("[realtime]", status)
+      })
+    return () => { supabase.removeChannel(ch).catch(() => {}) }
+  }, [id, load])
 
   useEffect(() => { if (comp?.status !== "active") return; const start = Date.now(); const t = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000); return () => clearInterval(t) }, [comp?.status])
 

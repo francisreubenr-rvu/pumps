@@ -23,7 +23,7 @@ export default function NewWorkoutPage() {
     supabase.from("exercises").select("*").order("category").then(({ data }) => setExercises(data ?? []))
     const t = setInterval(() => setElapsed(Math.floor((Date.now() - startTime) / 1000)), 1000)
     return () => clearInterval(t)
-  }, [])
+  }, [router, startTime])
 
   function addEx(id: string) { if (selected.includes(id)) return; setSelected([...selected, id]); setSets({ ...sets, [id]: [] }) }
   function removeEx(id: string) { setSelected(selected.filter(x => x !== id)); const ns = { ...sets }; delete ns[id]; setSets(ns) }

@@ -6,24 +6,35 @@ const saira = Saira({
   variable: "--font-saira",
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700", "800", "900"],
+  display: "swap",
 })
 
 const teko = Teko({
   variable: "--font-teko",
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
 })
 
 export const metadata: Metadata = {
-  title: "Pumps — Track. Compete. Dominate.",
-  description: "The gym journal built for lifters who keep score.",
+  title: "Pumps — Gym Journaling",
+  description: "Track workouts. Compete with friends. Dominate the leaderboard.",
+  metadataBase: new URL("https://francisreubenr-rvu.github.io"),
+  openGraph: {
+    title: "Pumps — Track. Compete. Dominate.",
+    description: "The gym journal built for lifters who keep score.",
+    siteName: "Pumps",
+  },
 }
 
-export default function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${saira.variable} ${teko.variable} dark h-full antialiased`}>
+    <html lang="en" className={`${saira.variable} ${teko.variable} dark h-full antialiased`} style={{ colorScheme: "dark" }}>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta name="theme-color" content="#050505" />
+        <link rel="preconnect" href="https://jchfbpzucylthmgthktj.supabase.co" />
+      </head>
       <body className="min-h-full">{children}</body>
     </html>
   )
