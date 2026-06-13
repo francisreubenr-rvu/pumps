@@ -94,7 +94,7 @@ export default function LandingPage() {
       ══════════════════════════════════════ */}
       <section
         ref={heroRef}
-        style={{ height: "300vh", position: "relative" }}
+        style={{ height: "200vh", position: "relative" }}
         aria-label="Hero"
       >
         {/* Sticky canvas container */}
