@@ -4,13 +4,13 @@ import { useEffect, useState, useRef } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { TrendingUp, Swords, Plus, Activity, Zap, ChevronRight, Clock } from "lucide-react"
+import { TrendingUp, Swords, Plus, Activity, Zap, ChevronRight, Clock, type LucideIcon } from "lucide-react"
 import { useMode } from "@/lib/mode-context"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts"
 import { AppNav } from "@/components/layout/nav"
 
 function ScrambleCounter({ value, label, unit, icon: Icon, delay }: {
-  value: number; label: string; unit?: string; icon: React.ElementType; delay: number
+  value: number; label: string; unit?: string; icon: LucideIcon; delay: number
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
