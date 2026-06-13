@@ -5,9 +5,8 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 function getEnvVar(name: string, value: string | undefined): string {
   if (!value) {
-    throw new Error(
-      `Missing environment variable: ${name}. Ensure it is set in .env.local or your deployment environment.`
-    )
+    console.error(`Missing environment variable: ${name}. Ensure it is set in .env.local or your deployment environment.`)
+    return ""
   }
   return value
 }

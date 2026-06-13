@@ -4,7 +4,8 @@ import { useEffect, useState, useRef } from "react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { Dumbbell, TrendingUp, Swords, Plus, Activity, Zap, ChevronRight, Clock } from "lucide-react"
+import { TrendingUp, Swords, Plus, Activity, Zap, ChevronRight, Clock } from "lucide-react"
+import { useMode } from "@/lib/mode-context"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts"
 
 function ScrambleCounter({ value, label, unit, icon: Icon, delay }: {
@@ -56,8 +57,7 @@ function ScrambleCounter({ value, label, unit, icon: Icon, delay }: {
 }
 
 function NavLink({ href, label, pathname }: { href: string; label: string; pathname: string }) {
-  const basePath = "/pumps"
-  const isActive = pathname === basePath + href || pathname.startsWith(basePath + href + "/")
+  const isActive = pathname === href || pathname.startsWith(href + "/")
   return (
     <Link
       href={href}
@@ -82,6 +82,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const router = useRouter()
   const pathname = usePathname()
+  const { mode, meta } = useMode()
 
   useEffect(() => {
     const supabase = createClient()
@@ -139,10 +140,14 @@ export default function DashboardPage() {
           <nav style={{ display: "flex", alignItems: "center", gap: 2 }}>
             {[
               { href: "/dashboard", label: "Dashboard" },
+              { href: "/journal", label: "Journal" },
               { href: "/workouts/new", label: "Log" },
               { href: "/competitions", label: "Compete" },
               { href: "/leaderboard", label: "Ranks" },
               { href: "/progress", label: "Progress" },
+              { href: "/squads", label: "Squads" },
+              { href: "/routines", label: "Routines" },
+              { href: "/modes", label: "Mode" },
             ].map(l => (
               <NavLink key={l.href} href={l.href} label={l.label} pathname={pathname} />
             ))}
@@ -159,7 +164,7 @@ export default function DashboardPage() {
             {user?.user_metadata?.display_name || user?.email?.split("@")[0] || "Athlete"}
           </h1>
           <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 13, fontWeight: 500, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--accent)", marginTop: 4 }}>
-            OVERVIEW
+            {meta[mode].tagline}
           </p>
         </div>
 

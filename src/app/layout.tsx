@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { Saira, Teko } from "next/font/google"
+import { ModeProvider } from "@/lib/mode-context"
 import "./globals.css"
 
 const saira = Saira({
@@ -19,7 +20,7 @@ const teko = Teko({
 export const metadata: Metadata = {
   title: "Pumps — Gym Journaling",
   description: "Track workouts. Compete with friends. Dominate the leaderboard.",
-  metadataBase: new URL("https://francisreubenr-rvu.github.io/pumps"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
   openGraph: {
     title: "Pumps — Track. Compete. Dominate.",
     description: "The gym journal built for lifters who keep score.",
@@ -36,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="theme-color" content="#050505" />
         <link rel="preconnect" href="https://jchfbpzucylthmgthktj.supabase.co" />
       </head>
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full"><ModeProvider>{children}</ModeProvider></body>
     </html>
   )
 }
