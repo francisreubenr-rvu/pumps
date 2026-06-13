@@ -256,3 +256,118 @@ h1, h2, h3, h4, .heading {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ═════════════════════════════════════════════════════════════════════
+   LANDING PAGE ANIMATIONS & LAYOUT
+   ═════════════════════════════════════════════════════════════════════ */
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+@keyframes floatDown {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50%       { transform: translateX(-50%) translateY(6px); }
+}
+
+/* Respect reduced motion — hide hero video, pause marquee */
+@media (prefers-reduced-motion: reduce) {
+  .hero-video { opacity: 0 !important; }
+  [style*="marquee"] { animation: none !important; }
+  [style*="floatDown"] { animation: none !important; }
+}
+
+/* Split showcase sections stack on mobile */
+.split-section {
+  grid-template-columns: 1fr 1fr;
+}
+
+@media (max-width: 768px) {
+  .split-section {
+    grid-template-columns: 1fr;
+  }
+  .split-section > *:first-child {
+    min-height: 220px;
+  }
+}
+
+/* ═════════════════════════════════════════════════════════════════════
+   RESPONSIVE NAV — desktop / mobile visibility
+   ═════════════════════════════════════════════════════════════════════ */
+
+.nav-desktop {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  overflow-x: auto;
+}
+
+.nav-mobile {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .nav-desktop { display: none; }
+  .nav-mobile  { display: flex; }
+}
+
+/* ═════════════════════════════════════════════════════════════════════
+   MOBILE UTILITIES
+   ═════════════════════════════════════════════════════════════════════ */
+
+/* Responsive page grid — stack to single column on mobile */
+.grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+}
+
+@media (max-width: 640px) {
+  .grid-2col { grid-template-columns: 1fr; }
+}
+
+/* Page container — generous padding with safe-area insets on mobile */
+.page-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 40px 24px;
+  padding-bottom: max(40px, calc(24px + env(safe-area-inset-bottom)));
+}
+
+@media (max-width: 640px) {
+  .page-container { padding: 24px 16px; }
+}
+
+/* Gym image overlay for section backgrounds */
+.gym-bg-overlay {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+/* Scrollable card row on mobile */
+.card-row-scroll {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+}
+
+@media (max-width: 640px) {
+  .card-row-scroll {
+    display: flex;
+    overflow-x: auto;
+    gap: 8px;
+    padding-bottom: 4px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  .card-row-scroll > * {
+    min-width: 220px;
+    flex-shrink: 0;
+    scroll-snap-align: start;
+  }
+}

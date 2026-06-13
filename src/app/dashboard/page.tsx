@@ -2,11 +2,12 @@
 
 import { useEffect, useState, useRef } from "react"
 import Link from "next/link"
-import { useRouter, usePathname } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { TrendingUp, Swords, Plus, Activity, Zap, ChevronRight, Clock } from "lucide-react"
 import { useMode } from "@/lib/mode-context"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts"
+import { AppNav } from "@/components/layout/nav"
 
 function ScrambleCounter({ value, label, unit, icon: Icon, delay }: {
   value: number; label: string; unit?: string; icon: React.ElementType; delay: number
@@ -56,22 +57,6 @@ function ScrambleCounter({ value, label, unit, icon: Icon, delay }: {
   )
 }
 
-function NavLink({ href, label, pathname }: { href: string; label: string; pathname: string }) {
-  const isActive = pathname === href || pathname.startsWith(href + "/")
-  return (
-    <Link
-      href={href}
-      style={{
-        fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em",
-        textTransform: "uppercase", color: isActive ? "var(--accent)" : "var(--text-secondary)",
-        textDecoration: "none", padding: "8px 14px", transition: "color 100ms",
-      }}
-    >
-      {label}
-    </Link>
-  )
-}
-
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
   const [workoutCount, setWorkoutCount] = useState(0)
@@ -81,7 +66,6 @@ export default function DashboardPage() {
   const [volumeHistory, setVolumeHistory] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
-  const pathname = usePathname()
   const { mode, meta } = useMode()
 
   useEffect(() => {
@@ -132,43 +116,24 @@ export default function DashboardPage() {
 
   return (
     <div style={{ backgroundColor: "var(--bg)", minHeight: "100vh" }}>
-      <header style={{ position: "sticky", top: 0, zIndex: 50, backgroundColor: "oklch(0.14 0.005 260 / 0.95)", backdropFilter: "blur(10px)", borderBottom: "1px solid var(--border)" }}>
-        <div style={{ maxWidth: 1280, margin: "0 auto", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 24px" }}>
-          <Link href="/" style={{ fontFamily: "var(--font-heading-stack)", fontSize: 16, fontWeight: 700, letterSpacing: "-0.04em", textTransform: "uppercase", color: "var(--fg)", textDecoration: "none" }}>
-            PUMPS
-          </Link>
-          <nav style={{ display: "flex", alignItems: "center", gap: 2 }}>
-            {[
-              { href: "/dashboard", label: "Dashboard" },
-              { href: "/journal", label: "Journal" },
-              { href: "/workouts/new", label: "Log" },
-              { href: "/competitions", label: "Compete" },
-              { href: "/leaderboard", label: "Ranks" },
-              { href: "/progress", label: "Progress" },
-              { href: "/squads", label: "Squads" },
-              { href: "/routines", label: "Routines" },
-              { href: "/modes", label: "Mode" },
-            ].map(l => (
-              <NavLink key={l.href} href={l.href} label={l.label} pathname={pathname} />
-            ))}
-            <Link href="/workouts/new" className="btn-primary" style={{ marginLeft: 12, fontSize: 12, padding: "8px 16px" }}>
-              <Plus size={14} aria-hidden="true" /> LOG
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <AppNav />
 
-      <main style={{ maxWidth: 1280, margin: "0 auto", padding: "40px 24px" }}>
-        <div style={{ marginBottom: 48 }}>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(40px, 6vw, 64px)", fontWeight: 600, letterSpacing: "-0.02em", textTransform: "uppercase", color: "var(--fg)", lineHeight: 1.05, fontVariantNumeric: "tabular-nums" }}>
-            {user?.user_metadata?.display_name || user?.email?.split("@")[0] || "Athlete"}
-          </h1>
-          <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 13, fontWeight: 500, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--accent)", marginTop: 4 }}>
-            {meta[mode].tagline}
-          </p>
+      <main className="page-container">
+        {/* Hero banner */}
+        <div style={{ position: "relative", marginBottom: 40, padding: "32px 28px", overflow: "hidden", borderBottom: "1px solid var(--border)" }}>
+          <div style={{ position: "absolute", inset: 0, backgroundImage: "url(/images/hero-weights.jpg)", backgroundSize: "cover", backgroundPosition: "center 40%", opacity: 0.08 }} />
+          <div style={{ position: "relative" }}>
+            <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(36px, 6vw, 64px)", fontWeight: 600, letterSpacing: "-0.02em", textTransform: "uppercase", color: "var(--fg)", lineHeight: 1.05, fontVariantNumeric: "tabular-nums" }}>
+              {user?.user_metadata?.display_name || user?.email?.split("@")[0] || "Athlete"}
+            </h1>
+            <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 13, fontWeight: 500, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--accent)", marginTop: 6 }}>
+              {meta[mode].tagline}
+            </p>
+          </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 2, marginBottom: 48 }}>
+        {/* Stats row */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 2, marginBottom: 32 }}>
           <ScrambleCounter value={workoutCount} label="WORKOUTS" icon={Zap} delay={100} />
           <ScrambleCounter value={volume} label="TOTAL VOLUME" unit="KG" icon={TrendingUp} delay={200} />
           <ScrambleCounter value={activeComps.length} label="LIVE COMPS" icon={Swords} delay={300} />
@@ -183,8 +148,9 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="card-surface" style={{ padding: 24, marginBottom: 48 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+        {/* Volume chart */}
+        <div className="card-surface" style={{ padding: 24, marginBottom: 32 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <h3 style={{ fontFamily: "var(--font-heading-stack)", fontSize: 14, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--fg)" }}>Volume History</h3>
             <span style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 500, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--text-secondary)" }}>LAST 8 WEEKS</span>
           </div>
@@ -204,12 +170,13 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, marginBottom: 48 }}>
+        {/* Two-column grid — stacks on mobile */}
+        <div className="grid-2col" style={{ marginBottom: 32 }}>
           <div className="card-surface" style={{ padding: 24 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
               <h3 style={{ fontFamily: "var(--font-heading-stack)", fontSize: 14, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--fg)" }}>Recent Workouts</h3>
-              <Link href="/workouts" style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--accent)", textDecoration: "none" }}>
-                View all <ChevronRight size={12} style={{ display: "inline" }} />
+              <Link href="/workouts" style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--accent)", textDecoration: "none", display: "flex", alignItems: "center", gap: 2 }}>
+                View all <ChevronRight size={12} />
               </Link>
             </div>
             {recentWorkouts.length > 0 ? (
@@ -237,8 +204,8 @@ export default function DashboardPage() {
           <div className="card-surface" style={{ padding: 24 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
               <h3 style={{ fontFamily: "var(--font-heading-stack)", fontSize: 14, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--fg)" }}>Active Competitions</h3>
-              <Link href="/competitions" style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--accent)", textDecoration: "none" }}>
-                View all <ChevronRight size={12} style={{ display: "inline" }} />
+              <Link href="/competitions" style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--accent)", textDecoration: "none", display: "flex", alignItems: "center", gap: 2 }}>
+                View all <ChevronRight size={12} />
               </Link>
             </div>
             {activeComps.length > 0 ? (
@@ -266,6 +233,21 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Quick actions */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 2 }}>
+          {[
+            { href: "/workouts/new", label: "Log Workout", icon: Plus },
+            { href: "/journal/new", label: "Write Journal", icon: ChevronRight },
+            { href: "/competitions/new", label: "New Competition", icon: Swords },
+            { href: "/progress", label: "View Progress", icon: TrendingUp },
+          ].map((a, i) => (
+            <Link key={i} href={a.href} className="card-surface" style={{ padding: "20px 16px", textDecoration: "none", display: "flex", alignItems: "center", gap: 10, transition: "border-color 100ms" }}>
+              <a.icon size={14} style={{ color: "var(--accent)", flexShrink: 0 }} />
+              <span style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--fg)" }}>{a.label}</span>
+            </Link>
+          ))}
         </div>
       </main>
     </div>

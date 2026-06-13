@@ -93,8 +93,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ backgroundColor: "var(--bg)", minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 24 }}>
-      <div style={{ maxWidth: 400, width: "100%" }}>
+    <div style={{ backgroundColor: "var(--bg)", minHeight: "100dvh", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 24, position: "relative", overflow: "hidden" }}>
+      <div style={{ position: "absolute", inset: 0, backgroundImage: "url(/images/gym-dark-1.jpg)", backgroundSize: "cover", backgroundPosition: "center 40%", opacity: 0.12 }} />
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, oklch(0.14 0.005 260 / 0.95) 0%, oklch(0.14 0.005 260 / 0.8) 100%)" }} />
+      <div style={{ position: "relative", maxWidth: 400, width: "100%" }}>
         <div style={{ textAlign: "center", marginBottom: 40 }}>
           <h1 style={{ fontFamily: "var(--font-display)", fontSize: 56, fontWeight: 600, letterSpacing: "-0.02em", textTransform: "uppercase", color: "var(--fg)", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
             PUMPS
