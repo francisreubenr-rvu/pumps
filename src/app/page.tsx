@@ -71,6 +71,8 @@ export default function LandingPage() {
   const heroRef = useRef<HTMLElement>(null)
   const progress = useScrollProgress(heroRef as React.RefObject<HTMLElement>)
   const isMobile = useIsMobile()
+  /* Thin-phone flag (~360px) — reuses the existing mount-safe hook, no duplication */
+  const isThin = useIsMobile(480)
 
   return (
     <div style={{ backgroundColor: "transparent", overflowX: "hidden" }}>
@@ -254,7 +256,7 @@ export default function LandingPage() {
           </h2>
         </FadeSection>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 1 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: isThin ? 10 : 1 }}>
           {[
             { icon: Dumbbell, label: "LOG", title: "Track Everything", desc: "Sets, reps, weight — logged with precision. Every workout, every exercise, every PR.", delay: 0 },
             { icon: Swords,   label: "COMPETE", title: "Live Competition", desc: "Race friends in real time. Leaderboards update instantly as sets are logged.", delay: 60 },
@@ -349,7 +351,7 @@ export default function LandingPage() {
           <div style={{
             order: s.imgSide === "left" ? 1 : 0,
             display: "flex", flexDirection: "column", justifyContent: "center",
-            padding: "clamp(36px, 6vw, 88px)",
+            padding: isThin ? "28px 18px" : "clamp(36px, 6vw, 88px)",
           }}>
             <FadeSection>
               <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 10, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--accent)", marginBottom: 18 }}>
@@ -405,7 +407,7 @@ export default function LandingPage() {
       ══════════════════════════════════════ */}
       <FadeSection>
         <section style={{ borderTop: "1px solid rgba(255,255,255,0.06)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-          <div style={{ maxWidth: 1400, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
+          <div style={{ maxWidth: 1400, margin: "0 auto", display: "grid", gridTemplateColumns: isThin ? "1fr 1fr" : "repeat(auto-fit, minmax(160px, 1fr))" }}>
             {[
               { num: "∞",    label: "PRs Possible" },
               { num: "0",    label: "Corporate Vibes" },
@@ -413,9 +415,11 @@ export default function LandingPage() {
               { num: "100%", label: "Underground Iron" },
             ].map((s, i) => (
               <div key={i} style={{
-                padding: "clamp(32px, 5vh, 52px) clamp(16px, 3vw, 32px)",
+                padding: isThin ? "clamp(26px, 4vh, 40px) 14px" : "clamp(32px, 5vh, 52px) clamp(16px, 3vw, 32px)",
                 textAlign: "center",
-                borderRight: i < 3 ? "1px solid rgba(255,255,255,0.06)" : undefined,
+                /* 2-up grid on thin phones: only odd cells get a right divider */
+                borderRight: isThin ? (i % 2 === 0 ? "1px solid rgba(255,255,255,0.06)" : undefined) : (i < 3 ? "1px solid rgba(255,255,255,0.06)" : undefined),
+                borderTop: isThin && i >= 2 ? "1px solid rgba(255,255,255,0.06)" : undefined,
               }}>
                 <p style={{ fontFamily: "var(--font-display)", fontSize: "clamp(48px, 6.5vw, 76px)", fontWeight: 600, letterSpacing: "-0.02em", color: "var(--accent)", lineHeight: 1 }}>{s.num}</p>
                 <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-secondary)", marginTop: 8 }}>{s.label}</p>
@@ -440,7 +444,7 @@ export default function LandingPage() {
           </div>
         </FadeSection>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 1 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: isThin ? 10 : 1 }}>
           {[
             { name: "MONK",    hex: "oklch(0.55 0.12 275)", tagline: "Discipline. Silence. Gains.", desc: "Blue focus mode. Zero distractions.", gradient: "135deg, rgba(40,40,100,0.4) 0%, rgba(0,0,5,0) 100%" },
             { name: "REVENGE", hex: "oklch(0.60 0.25 25)",  tagline: "Prove them wrong.",           desc: "Red fury mode. Channel the rage.",   gradient: "135deg, rgba(100,20,20,0.4) 0%, rgba(0,0,5,0) 100%" },

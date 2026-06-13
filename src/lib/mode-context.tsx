@@ -72,9 +72,21 @@ export function ModeProvider({ children }: { children: React.ReactNode }) {
 
 function applyBodyClass(mode: Mode) {
   if (typeof document === "undefined") return
-  document.body.classList.remove("mode-monk", "mode-revenge", "mode-winter", "mode-happy")
-  if (mode !== "default") {
-    document.body.classList.add(`mode-${mode}`)
+  const target = mode === "default" ? "" : `mode-${mode}`
+  const body = document.body
+  // Idempotent: if the correct class is already applied (e.g. by the
+  // pre-hydration inline script in the root layout), do nothing. This avoids a
+  // redundant DOM write / style recalc that could cause a second flash on mount.
+  if (target ? body.classList.contains(target) &&
+      !["mode-monk", "mode-revenge", "mode-winter", "mode-happy"]
+        .some((c) => c !== target && body.classList.contains(c))
+    : !["mode-monk", "mode-revenge", "mode-winter", "mode-happy"]
+        .some((c) => body.classList.contains(c))) {
+    return
+  }
+  body.classList.remove("mode-monk", "mode-revenge", "mode-winter", "mode-happy")
+  if (target) {
+    body.classList.add(target)
   }
 }
 

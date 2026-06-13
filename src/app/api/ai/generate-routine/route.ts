@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
-import { callDeepSeek, parseJsonResponse } from "@/lib/deepseek"
+import { callDeepSeek, parseJsonResponse, withGuardrail } from "@/lib/deepseek"
 
-const SYSTEM_PROMPT = `You are an expert strength and conditioning coach with 20 years of experience.
+const SYSTEM_PROMPT = withGuardrail(`You are an expert strength and conditioning coach with 20 years of experience.
 Create a complete weekly workout routine based on the user's parameters.
 Return ONLY valid JSON with no explanation, matching this exact schema:
 {"name":string,"overview":string,"days":[{"day":string,"focus":string,"exercises":[{"name":string,"sets":number,"reps":string,"rest_seconds":number,"notes":string}]}]}
@@ -9,7 +9,8 @@ Rules:
 - "reps" is a string so you can write ranges like "8-12" or "5" or "AMRAP"
 - Make the routine progressive and appropriate for the experience level
 - Include warmup and cooldown as exercise items where appropriate
-- Never include text outside the JSON`
+- Only ever produce gym/fitness training programs; if the parameters describe anything non-fitness, return {"name":"","overview":"","days":[]}
+- Never include text outside the JSON`)
 
 type GeneratedRoutine = {
   name: string

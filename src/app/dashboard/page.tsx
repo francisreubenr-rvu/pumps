@@ -9,8 +9,20 @@ import { useMode } from "@/lib/mode-context"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts"
 import { AppNav } from "@/components/layout/nav"
 
-function ScrambleCounter({ value, label, unit, icon: Icon, delay }: {
-  value: number; label: string; unit?: string; icon: LucideIcon; delay: number
+/* Mount-safe thin-phone check — starts false to avoid SSR hydration mismatch */
+function useIsThinPhone(bp = 480) {
+  const [thin, setThin] = useState(false)
+  useEffect(() => {
+    const update = () => setThin(window.innerWidth < bp)
+    update()
+    window.addEventListener("resize", update)
+    return () => window.removeEventListener("resize", update)
+  }, [bp])
+  return thin
+}
+
+function ScrambleCounter({ value, label, unit, icon: Icon, delay, pad = 24 }: {
+  value: number; label: string; unit?: string; icon: LucideIcon; delay: number; pad?: number
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(false)
@@ -44,7 +56,7 @@ function ScrambleCounter({ value, label, unit, icon: Icon, delay }: {
   }, [visible, value, delay, mounted])
 
   return (
-    <div ref={ref} className="card-surface" style={{ padding: 24 }}>
+    <div ref={ref} className="card-surface" style={{ padding: pad }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
         <Icon size={14} style={{ color: "var(--accent)" }} aria-hidden="true" />
         <span style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-secondary)" }}>{label}</span>
@@ -67,6 +79,11 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const router = useRouter()
   const { mode, meta } = useMode()
+  const thin = useIsThinPhone()
+
+  /* Thin-phone density tokens */
+  const cardPad = thin ? 18 : 24
+  const heroPad = thin ? "24px 18px" : "32px 28px"
 
   useEffect(() => {
     const supabase = createClient()
@@ -120,7 +137,7 @@ export default function DashboardPage() {
 
       <main className="page-container">
         {/* Hero banner */}
-        <div style={{ position: "relative", marginBottom: 40, padding: "32px 28px", overflow: "hidden", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ position: "relative", marginBottom: thin ? 28 : 40, padding: heroPad, overflow: "hidden", borderBottom: "1px solid var(--border)" }}>
           <div style={{ position: "absolute", inset: 0, backgroundImage: "url(/images/hero-weights.jpg)", backgroundSize: "cover", backgroundPosition: "center 40%", opacity: 0.08 }} />
           <div style={{ position: "relative" }}>
             <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(36px, 6vw, 64px)", fontWeight: 600, letterSpacing: "-0.02em", textTransform: "uppercase", color: "var(--fg)", lineHeight: 1.05, fontVariantNumeric: "tabular-nums" }}>
@@ -132,12 +149,12 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Stats row */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 2, marginBottom: 32 }}>
-          <ScrambleCounter value={workoutCount} label="WORKOUTS" icon={Zap} delay={100} />
-          <ScrambleCounter value={volume} label="TOTAL VOLUME" unit="KG" icon={TrendingUp} delay={200} />
-          <ScrambleCounter value={activeComps.length} label="LIVE COMPS" icon={Swords} delay={300} />
-          <div className="card-surface" style={{ padding: 24 }}>
+        {/* Stats row — single column on thin phones so each stat breathes */}
+        <div style={{ display: "grid", gridTemplateColumns: thin ? "1fr" : "repeat(auto-fit, minmax(160px, 1fr))", gap: thin ? 10 : 2, marginBottom: thin ? 24 : 32 }}>
+          <ScrambleCounter value={workoutCount} label="WORKOUTS" icon={Zap} delay={100} pad={cardPad} />
+          <ScrambleCounter value={volume} label="TOTAL VOLUME" unit="KG" icon={TrendingUp} delay={200} pad={cardPad} />
+          <ScrambleCounter value={activeComps.length} label="LIVE COMPS" icon={Swords} delay={300} pad={cardPad} />
+          <div className="card-surface" style={{ padding: cardPad }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
               <Activity size={14} style={{ color: "var(--accent)" }} aria-hidden="true" />
               <span style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-secondary)" }}>STATUS</span>
@@ -149,7 +166,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Volume chart */}
-        <div className="card-surface" style={{ padding: 24, marginBottom: 32 }}>
+        <div className="card-surface" style={{ padding: cardPad, marginBottom: thin ? 24 : 32 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
             <h3 style={{ fontFamily: "var(--font-heading-stack)", fontSize: 14, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--fg)" }}>Volume History</h3>
             <span style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 500, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--text-secondary)" }}>LAST 8 WEEKS</span>
@@ -171,8 +188,8 @@ export default function DashboardPage() {
         </div>
 
         {/* Two-column grid — stacks on mobile */}
-        <div className="grid-2col" style={{ marginBottom: 32 }}>
-          <div className="card-surface" style={{ padding: 24 }}>
+        <div className="grid-2col" style={{ marginBottom: thin ? 24 : 32 }}>
+          <div className="card-surface" style={{ padding: cardPad }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
               <h3 style={{ fontFamily: "var(--font-heading-stack)", fontSize: 14, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--fg)" }}>Recent Workouts</h3>
               <Link href="/workouts" style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--accent)", textDecoration: "none", display: "flex", alignItems: "center", gap: 2 }}>
@@ -201,7 +218,7 @@ export default function DashboardPage() {
             )}
           </div>
 
-          <div className="card-surface" style={{ padding: 24 }}>
+          <div className="card-surface" style={{ padding: cardPad }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
               <h3 style={{ fontFamily: "var(--font-heading-stack)", fontSize: 14, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--fg)" }}>Active Competitions</h3>
               <Link href="/competitions" style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--accent)", textDecoration: "none", display: "flex", alignItems: "center", gap: 2 }}>
@@ -235,8 +252,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Quick actions */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 2 }}>
+        {/* Quick actions — single column on thin phones so labels don't jam */}
+        <div style={{ display: "grid", gridTemplateColumns: thin ? "1fr" : "repeat(auto-fit, minmax(140px, 1fr))", gap: thin ? 8 : 2 }}>
           {[
             { href: "/workouts/new", label: "Log Workout", icon: Plus },
             { href: "/journal/new", label: "Write Journal", icon: ChevronRight },

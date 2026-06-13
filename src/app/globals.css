@@ -449,6 +449,28 @@ h1, h2, h3, h4, .heading {
   .page-container { padding: 24px 16px; }
 }
 
+/* ═════════════════════════════════════════════════════════════════════
+   THIN-PHONE DENSITY RELAXERS (~360px — small Androids / iPhone mini)
+   Surgical, mobile-gated. Loosen padding/gaps so content breathes and
+   never overflows horizontally. Do NOT touch html/body overflow — it
+   would break the landing-page position:sticky hero.
+   ═════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 480px) {
+  /* Trim container side padding so cards aren't jammed edge-to-edge */
+  .page-container { padding: 20px 14px; }
+
+  /* Single-column stat/quick grids breathe with a touch more gap */
+  .grid-2col { gap: 10px; }
+
+  /* Card rows already scroll horizontally <=640px; widen snap targets a hair */
+  .card-row-scroll > * { min-width: 78vw; }
+}
+
+@media (max-width: 360px) {
+  .page-container { padding: 18px 12px; }
+}
+
 /* Gym image overlay for section backgrounds */
 .gym-bg-overlay {
   position: absolute;

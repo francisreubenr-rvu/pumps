@@ -38,7 +38,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="theme-color" content="#050505" />
         <link rel="preconnect" href="https://jchfbpzucylthmgthktj.supabase.co" />
       </head>
-      <body className="min-h-full"><ModeProvider><ThemeEnvironment />{children}</ModeProvider></body>
+      <body className="min-h-full">
+        <script
+          // No-FOUC: synchronously apply the stored mode class to <body> before
+          // first paint, so the correct CSS variables (--bg, --accent, etc.) are
+          // in effect on the very first render instead of flashing the default theme.
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var m=localStorage.getItem("kinetic_mode");var allowed=["monk","revenge","winter","happy"];var b=document.body;b.classList.remove("mode-monk","mode-revenge","mode-winter","mode-happy");if(allowed.indexOf(m)!==-1){b.classList.add("mode-"+m);}}catch(e){}})();`,
+          }}
+        />
+        <ModeProvider><ThemeEnvironment />{children}</ModeProvider>
+      </body>
     </html>
   )
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
-import { callDeepSeek, parseJsonResponse } from "@/lib/deepseek"
+import { callDeepSeek, parseJsonResponse, withGuardrail } from "@/lib/deepseek"
 
-const SYSTEM_PROMPT = `You are a gym workout parser. Parse natural language workout descriptions into structured JSON.
+const SYSTEM_PROMPT = withGuardrail(`You are a gym workout parser. Parse natural language workout descriptions into structured JSON.
 Return ONLY valid JSON with no explanation, matching this exact schema:
 {"exercises":[{"name":string,"sets":[{"reps":number,"weight_kg":number}]}]}
 Rules:
@@ -9,7 +9,8 @@ Rules:
 - If weight is in lbs, convert to kg (divide by 2.205, round to 1 decimal)
 - If no weight mentioned, use 0
 - If reps not specified, use 0
-- Never include any text outside the JSON`
+- If the input is not a description of a gym/strength workout, return {"exercises":[]}
+- Never include any text outside the JSON`)
 
 type ParsedWorkout = {
   exercises: { name: string; sets: { reps: number; weight_kg: number }[] }[]

@@ -17,6 +17,7 @@ const NAV_LINKS = [
   { href: "/routines", label: "Routines" },
   { href: "/athletes", label: "Athletes" },
   { href: "/modes", label: "Mode" },
+  { href: "/playlists", label: "Playlists" },
   { href: "/progress", label: "Progress" },
 ]
 
