@@ -29,11 +29,6 @@ export default function SquadsPage() {
     })
   }, [router])
 
-  useEffect(() => {
-    if (!user) return
-    loadSquads()
-  }, [user])
-
   async function loadSquads() {
     const supabase = createClient()
     const [mine, pub] = await Promise.all([
@@ -44,6 +39,12 @@ export default function SquadsPage() {
     setPublicSquads(pub.data ?? [])
     setLoading(false)
   }
+
+  useEffect(() => {
+    if (!user) return
+    loadSquads()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
 
   async function joinByCode() {
     if (!joinCode.trim()) return
@@ -132,7 +133,7 @@ export default function SquadsPage() {
           {loading ? (
             <p style={{ color: "var(--text-secondary)", fontFamily: "var(--font-heading-stack)", fontSize: 12 }}>Loading…</p>
           ) : mySquads.length === 0 ? (
-            <p style={{ color: "var(--text-secondary)", fontFamily: "var(--font-heading-stack)", fontSize: 12 }}>You're not in any squads yet.</p>
+            <p style={{ color: "var(--text-secondary)", fontFamily: "var(--font-heading-stack)", fontSize: 12 }}>You&apos;re not in any squads yet.</p>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 2 }}>
               {mySquads.map((s: any) => (

@@ -34,16 +34,16 @@ const ModeContext = createContext<{
 })
 
 export function ModeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setModeState] = useState<Mode>("default")
+  const [mode, setModeState] = useState<Mode>(() => {
+    if (typeof localStorage === "undefined") return "default"
+    const stored = localStorage.getItem(STORAGE_KEY) as Mode | null
+    return stored && stored in MODE_META ? stored : "default"
+  })
 
-  // Read from localStorage on mount and apply body class
+  // Apply body class whenever mode changes (including on mount)
   useEffect(() => {
-    const stored = (typeof localStorage !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null) as Mode | null
-    if (stored && stored in MODE_META) {
-      setModeState(stored)
-      applyBodyClass(stored)
-    }
-  }, [])
+    applyBodyClass(mode)
+  }, [mode])
 
   async function setMode(newMode: Mode) {
     setModeState(newMode)

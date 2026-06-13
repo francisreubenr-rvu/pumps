@@ -103,7 +103,7 @@ export default function ModesPage() {
                   {m.description}
                 </p>
                 <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontStyle: "italic", color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: 24, borderLeft: `2px solid ${m.color}`, paddingLeft: 12 }}>
-                  "{m.quote}"
+                  &ldquo;{m.quote}&rdquo;
                 </p>
 
                 <button

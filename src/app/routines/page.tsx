@@ -29,6 +29,17 @@ const EXPERIENCE = [
   { value: "advanced", label: "Advanced" },
 ]
 
+function SelectField({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
+  return (
+    <div>
+      <label className="label-sm" style={{ display: "block", marginBottom: 6 }}>{label}</label>
+      <select value={value} onChange={e => onChange(e.target.value)} className="input-field" style={{ width: "100%", padding: "10px 12px" }}>
+        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    </div>
+  )
+}
+
 function DayAccordion({ day }: { day: Day }) {
   const [open, setOpen] = useState(false)
   return (
@@ -139,14 +150,6 @@ export default function RoutinesPage() {
     setSavedRoutines(prev => prev.filter(r => r.id !== id))
   }
 
-  const SelectField = ({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) => (
-    <div>
-      <label className="label-sm" style={{ display: "block", marginBottom: 6 }}>{label}</label>
-      <select value={value} onChange={e => onChange(e.target.value)} className="input-field" style={{ width: "100%", padding: "10px 12px" }}>
-        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
-    </div>
-  )
 
   return (
     <div style={{ backgroundColor: "var(--bg)", minHeight: "100vh" }}>

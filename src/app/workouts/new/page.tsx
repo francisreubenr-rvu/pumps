@@ -14,7 +14,7 @@ export default function NewWorkoutPage() {
   const [sets, setSets] = useState<Record<string, { reps: number; weight: number; completed: boolean }[]>>({})
   const [workoutName, setWorkoutName] = useState("")
   const [saving, setSaving] = useState(false)
-  const [startTime] = useState(Date.now())
+  const [startTime] = useState(() => Date.now())
   const [elapsed, setElapsed] = useState(0)
 
   useEffect(() => {

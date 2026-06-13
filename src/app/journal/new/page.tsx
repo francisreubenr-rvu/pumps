@@ -130,7 +130,7 @@ export default function NewJournalPage() {
       <main style={{ maxWidth: 1100, margin: "0 auto", padding: "40px 24px" }}>
         <div style={{ marginBottom: 32 }}>
           <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(32px, 4vw, 48px)", fontWeight: 600, letterSpacing: "-0.02em", textTransform: "uppercase", color: "var(--fg)", lineHeight: 1 }}>
-            Today's Entry
+            Today&apos;s Entry
           </h1>
           <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--accent)", marginTop: 4 }}>
             {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
