@@ -60,7 +60,7 @@ export default function LandingPage() {
   const progress = useScrollProgress(heroRef as React.RefObject<HTMLElement>)
 
   return (
-    <div style={{ backgroundColor: "var(--bg)", overflowX: "hidden" }}>
+    <div style={{ backgroundColor: "transparent", overflowX: "hidden" }}>
 
       {/* ══════════════════════════════════════
           TOP NAV — frosted glass
@@ -104,13 +104,13 @@ export default function LandingPage() {
           overflow: "hidden",
           display: "flex", flexDirection: "column",
         }}>
-          {/* Ambient gradient behind the scene */}
+          {/* Ambient gradient behind the scene — theme-neutral so it reads across all modes,
+              with the active accent providing a faint tint */}
           <div aria-hidden="true" style={{
             position: "absolute", inset: 0,
             background: `
-              radial-gradient(ellipse 70% 60% at 50% 30%, rgba(204,255,0,0.05) 0%, transparent 65%),
-              radial-gradient(ellipse 50% 50% at 20% 80%, rgba(80,60,255,0.07) 0%, transparent 60%),
-              #000005
+              radial-gradient(ellipse 70% 60% at 50% 28%, color-mix(in oklab, var(--accent) 8%, transparent) 0%, transparent 62%),
+              radial-gradient(ellipse 55% 50% at 18% 82%, rgba(255,255,255,0.04) 0%, transparent 60%)
             `,
           }} />
 
@@ -177,11 +177,11 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Bottom gradient fade to next section */}
+          {/* Bottom gradient fade to next section — trimmed so the marquee sits tight under DOMINATE */}
           <div aria-hidden="true" style={{
             position: "absolute",
             bottom: 0, left: 0, right: 0,
-            height: 160,
+            height: 90,
             background: "linear-gradient(to bottom, transparent, var(--bg))",
             pointerEvents: "none",
           }} />

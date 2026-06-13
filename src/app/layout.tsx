@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { Saira, Teko } from "next/font/google"
 import { ModeProvider } from "@/lib/mode-context"
+import { ThemeEnvironment } from "@/components/theme/theme-environment"
 import "./globals.css"
 
 const saira = Saira({
@@ -37,7 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="theme-color" content="#050505" />
         <link rel="preconnect" href="https://jchfbpzucylthmgthktj.supabase.co" />
       </head>
-      <body className="min-h-full"><ModeProvider>{children}</ModeProvider></body>
+      <body className="min-h-full"><ModeProvider><ThemeEnvironment />{children}</ModeProvider></body>
     </html>
   )
 }

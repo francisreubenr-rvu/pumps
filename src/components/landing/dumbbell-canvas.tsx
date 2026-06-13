@@ -8,19 +8,20 @@ import * as THREE from "three"
 /* ─── Dumbbell built entirely from primitives ─── */
 function DumbbellModel({ progress }: { progress: number }) {
   const groupRef = useRef<THREE.Group>(null)
-  const targetRot = useRef({ y: 0, x: 0 })
+  // Y axis stays constant — scroll only drives the X (tumble) and Z (barbell spin) axes.
+  const targetRot = useRef({ x: 0, z: Math.PI / 2 })
 
-  useFrame((state) => {
+  useFrame(() => {
     if (!groupRef.current) return
-    // Scroll drives Y rotation (1.75 full turns over 0→1)
-    targetRot.current.y = progress * Math.PI * 3.5
-    // Slight tilt arc on scroll
-    targetRot.current.x = Math.sin(progress * Math.PI) * 0.25
+    // Primary tumble around X, secondary spin around Z (base Math.PI/2 keeps the bar horizontal).
+    targetRot.current.x = progress * Math.PI * 3.5
+    targetRot.current.z = Math.PI / 2 + progress * Math.PI * 2
 
-    groupRef.current.rotation.y +=
-      (targetRot.current.y - groupRef.current.rotation.y) * 0.06
     groupRef.current.rotation.x +=
       (targetRot.current.x - groupRef.current.rotation.x) * 0.06
+    groupRef.current.rotation.z +=
+      (targetRot.current.z - groupRef.current.rotation.z) * 0.06
+    groupRef.current.rotation.y = 0 // locked — no vertical-axis spin
   })
 
   // Materials
@@ -173,31 +174,43 @@ export function DumbbellCanvas({ progress }: DumbbellCanvasProps) {
   const messages = [
     { text: "TRACK.", sub: "Every rep. Every set. Every PR.", inAt: 0.15, outAt: 0.42 },
     { text: "COMPETE.", sub: "Live duels. Real-time boards.", inAt: 0.45, outAt: 0.70 },
-    { text: "DOMINATE.", sub: "Own the leaderboard.", inAt: 0.73, outAt: 0.96 },
+    { text: "DOMINATE.", sub: "Own the leaderboard.", inAt: 0.73, outAt: 1.0 },
   ]
 
   const heroOpacity = progress < 0.08 ? 1 : progress < 0.15 ? 1 - (progress - 0.08) / 0.07 : 0
 
+  // Dumbbell smoothly vanishes as the scroll approaches the bottom of the section,
+  // so it never sits frozen — it shrinks + fades out right as DOMINATE lands.
+  const sceneFade = progress > 0.86 ? Math.max(0, 1 - (progress - 0.86) / 0.14) : 1
+
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
-      {/* Three.js canvas */}
-      <Canvas
-        camera={{ position: [0, 0, 5.5], fov: 40 }}
-        gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.3 }}
-        dpr={[1, 2]}
-        style={{ background: "transparent" }}
-        shadows
-      >
-        <Lighting />
-        <Environment preset="studio" environmentIntensity={0.4} />
-        <Float
-          speed={1.4}
-          rotationIntensity={0}
-          floatIntensity={progress < 0.05 ? 0.6 : 0}
+      {/* Three.js canvas — fades + scales down toward the end of the scroll */}
+      <div style={{
+        position: "absolute", inset: 0,
+        opacity: sceneFade,
+        transform: `scale(${0.92 + sceneFade * 0.08})`,
+        transition: "opacity 120ms linear, transform 120ms linear",
+        willChange: "opacity, transform",
+      }}>
+        <Canvas
+          camera={{ position: [0, 0, 5.5], fov: 40 }}
+          gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.3 }}
+          dpr={[1, 2]}
+          style={{ background: "transparent" }}
+          shadows
         >
-          <DumbbellModel progress={progress} />
-        </Float>
-      </Canvas>
+          <Lighting />
+          <Environment preset="studio" environmentIntensity={0.4} />
+          <Float
+            speed={1.4}
+            rotationIntensity={0}
+            floatIntensity={progress < 0.05 ? 0.6 : 0}
+          >
+            <DumbbellModel progress={progress} />
+          </Float>
+        </Canvas>
+      </div>
 
       {/* Hero title — fades out as scroll begins */}
       <div
