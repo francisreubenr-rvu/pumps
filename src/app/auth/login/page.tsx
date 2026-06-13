@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [busy, setBusy] = useState(false)
+  const [checkingSession, setCheckingSession] = useState(true)
   const router = useRouter()
 
   useEffect(() => {
@@ -19,6 +20,8 @@ export default function LoginPage() {
         supabase.from("profiles").select("username").eq("id", data.user.id).single().then(({ data: p }) => {
           router.replace(p?.username ? "/dashboard" : "/onboarding")
         })
+      } else {
+        setCheckingSession(false)
       }
     })
   }, [router])
@@ -27,10 +30,39 @@ export default function LoginPage() {
     e.preventDefault()
     setError("")
     setBusy(true)
-    const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) { setError(error.message); setBusy(false); return }
-    router.push("/dashboard")
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) { setError(error.message); setBusy(false); return }
+      router.push("/dashboard")
+    } catch {
+      setError("Network error. Please try again.")
+      setBusy(false)
+    }
+  }
+
+  async function handleSignUp() {
+    setError("")
+    setBusy(true)
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.signUp({ email, password })
+      if (error) { setError(error.message); setBusy(false); return }
+      setError("Check your email for a confirmation link.")
+      setBusy(false)
+    } catch {
+      setError("Network error. Please try again.")
+      setBusy(false)
+    }
+  }
+
+  if (checkingSession) {
+    return (
+      <div style={{ backgroundColor: "var(--bg)", minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <div style={{ width: 24, height: 24, border: "3px solid var(--surface-elevated)", borderTopColor: "var(--accent)", borderRadius: "50%", animation: "spin 0.6s linear infinite" }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      </div>
+    )
   }
 
   return (
@@ -65,7 +97,10 @@ export default function LoginPage() {
         </div>
 
         <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 500, color: "var(--text-secondary)", textAlign: "center", marginTop: 16 }}>
-          No account? <Link href="https://jchfbpzucylthmgthktj.supabase.co/auth/v1/signup" style={{ color: "var(--accent)", textDecoration: "none" }}>Create one on Flip</Link>
+          No account?{" "}
+          <button type="button" onClick={handleSignUp} disabled={busy} style={{ background: "none", border: "none", padding: 0, font: "inherit", color: "var(--accent)", cursor: "pointer", textDecoration: "none" }}>
+            Create one here
+          </button>
         </p>
       </div>
     </div>

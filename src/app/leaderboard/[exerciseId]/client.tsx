@@ -15,16 +15,16 @@ export default function ExerciseLeaderboardClient() {
   useEffect(() => {
     if (!exerciseId) return
     const supabase = createClient()
-    supabase.from("exercises").select("*").eq("id", exerciseId).single().then(({ data }) => setExercise(data))
+    supabase.from("exercises").select("*").eq("id", exerciseId).single().then(({ data }) => setExercise(data)).catch(() => {})
     supabase.from("exercise_sets").select(`weight_kg, reps, workout_exercises!inner(exercise_id, exercises!inner(name), workouts!inner(user_id))`).eq("completed", true).eq("workout_exercises.exercise_id", exerciseId).then(({ data }) => {
       supabase.from("profiles").select("id, username").then(({ data: profiles }) => {
         const pm = Object.fromEntries((profiles ?? []).map((p: any) => [p.id, p]))
         const best: Record<string, any> = {}
-        ;(data ?? []).forEach((s: any) => { const uid = s.workout_exercises.workouts.user_id; const prof = pm[uid]; if (!prof) return; const w = Number(s.weight_kg ?? 0); if (w > (best[uid]?.weight ?? 0)) best[uid] = { weight: w, username: prof.username } })
+        ;(data ?? []).forEach((s: any) => { const uid = s.workout_exercises?.workouts?.user_id; const prof = pm[uid]; if (!prof) return; const w = Number(s.weight_kg ?? 0); if (w > (best[uid]?.weight ?? 0)) best[uid] = { weight: w, username: prof.username } })
         setRanked(Object.values(best).sort((a: any, b: any) => b.weight - a.weight).map((e: any, i: number) => ({ rank: i + 1, ...e })))
         setLoading(false)
-      })
-    })
+      }).catch(() => setLoading(false))
+    }).catch(() => setLoading(false))
   }, [exerciseId])
 
   if (loading) return <div style={{ backgroundColor: "#050505", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ color: "#8d8d8d" }}>…</span></div>

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line } from "recharts"
@@ -13,11 +14,12 @@ export default function ProgressPage() {
   const [volume, setVolume] = useState<any[]>([])
   const [tab, setTab] = useState<"weight"|"volume">("weight")
   const [user, setUser] = useState<any>(null)
+  const router = useRouter()
 
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) return; setUser(data.user)
+      if (!data.user) { router.replace("/auth/login"); return } setUser(data.user)
       supabase.from("exercise_sets").select(`reps, weight_kg, created_at, workout_exercises!inner(exercises!inner(name), workouts!inner(started_at))`)
         .eq("completed",true).eq("workout_exercises.workouts.user_id",data.user.id).order("created_at",{ascending:true})
         .then(({ data }) => {
@@ -35,7 +37,7 @@ export default function ProgressPage() {
   },[])
 
   const filtered = maxWeight.filter((d:any)=>d.exercise===selected)
-  const demoVolume = volume.length>0?volume:[{period:"Oct 19",volume:12500},{period:"Oct 26",volume:18200},{period:"Nov 2",volume:15400},{period:"Nov 9",volume:22100},{period:"Nov 16",volume:19800},{period:"Nov 23",volume:24600},{period:"Nov 30",volume:20300},{period:"Dec 7",volume:28400}]
+  const demoVolume = volume
 
   return (
     <div style={{backgroundColor:"#050505",minHeight:"100vh"}}>
@@ -74,7 +76,7 @@ export default function ProgressPage() {
         {tab==="volume"&&(
           <div className="card-surface" style={{padding:24}}>
             <h3 style={{fontFamily:"var(--font-heading-stack)",fontSize:14,fontWeight:600,letterSpacing:"0.06em",textTransform:"uppercase",color:"#ffffff",marginBottom:24}}>WEEKLY VOLUME</h3>
-            <div style={{height:300}}><ResponsiveContainer width="100%" height="100%"><BarChart data={demoVolume}><XAxis dataKey="period" stroke="#8d8d8d" fontSize={10}/><YAxis stroke="#8d8d8d" fontSize={10}/><Tooltip contentStyle={{background:"#111",border:"1px solid #1a1a1a",fontSize:12,fontFamily:"var(--font-heading-stack)"}}/><Bar dataKey="volume" fill="#ccff00" radius={[0,0,0,0]}/></BarChart></ResponsiveContainer></div>
+            {demoVolume.length>0?(<div style={{height:300}}><ResponsiveContainer width="100%" height="100%"><BarChart data={demoVolume}><XAxis dataKey="period" stroke="#8d8d8d" fontSize={10}/><YAxis stroke="#8d8d8d" fontSize={10}/><Tooltip contentStyle={{background:"#111",border:"1px solid #1a1a1a",fontSize:12,fontFamily:"var(--font-heading-stack)"}}/><Bar dataKey="volume" fill="#ccff00" radius={[0,0,0,0]}/></BarChart></ResponsiveContainer></div>):<p style={{color:"#8d8d8d",textAlign:"center",padding:"40px 0",fontFamily:"var(--font-heading-stack)",fontSize:12}}>No data yet</p>}
           </div>
         )}
       </main>

@@ -38,7 +38,7 @@ export default function SettingsPage() {
           <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 14, fontWeight: 600, color: "var(--fg)" }}>{profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : "—"}</p>
         </div>
 
-        <button onClick={async () => { await createClient().auth.signOut(); router.push("/auth/login") }} className="btn-primary" style={{ background: "var(--accent-red)", width: "100%", justifyContent: "center", padding: "14px 0" }}>
+        <button onClick={async () => { try { await createClient().auth.signOut() } catch {}; router.push("/auth/login") }} className="btn-primary" style={{ background: "var(--accent-red)", width: "100%", justifyContent: "center", padding: "14px 0" }}>
           Sign Out
         </button>
       </main>

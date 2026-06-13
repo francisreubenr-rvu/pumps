@@ -56,7 +56,8 @@ function ScrambleCounter({ value, label, unit, icon: Icon, delay }: {
 }
 
 function NavLink({ href, label, pathname }: { href: string; label: string; pathname: string }) {
-  const isActive = pathname === href || pathname.startsWith(href + "/")
+  const basePath = "/pumps"
+  const isActive = pathname === basePath + href || pathname.startsWith(basePath + href + "/")
   return (
     <Link
       href={href}
@@ -101,6 +102,7 @@ export default function DashboardPage() {
       supabase.from("competitions").select("*, exercises(name)").eq("status", "active").limit(4),
       supabase.from("exercise_sets").select("reps, weight_kg, created_at, workout_exercises!inner(workouts!inner(started_at))").eq("completed", true).eq("workout_exercises.workouts.user_id", user.id).order("created_at", { ascending: true }),
     ]).then(([wc, vol, rw, ac, vh]) => {
+      wc ??= {}; vol ??= {}; rw ??= {}; ac ??= {}; vh ??= {}
       setWorkoutCount(wc.count ?? 0)
       setVolume(vol.data?.reduce((s: number, r: any) => s + (r.reps * (r.weight_kg ?? 0)), 0) ?? 0)
       setRecentWorkouts(rw.data ?? [])
@@ -109,13 +111,15 @@ export default function DashboardPage() {
 
       const weekly: Record<string, { volume: number }> = {}
       ;(vh.data ?? []).forEach((r: any) => {
-        const d = new Date(r.workout_exercises.workouts.started_at)
+        const d = new Date(r.workout_exercises?.workouts?.started_at)
         d.setDate(d.getDate() - d.getDay())
         const k = d.toISOString().slice(0, 10)
         if (!weekly[k]) weekly[k] = { volume: 0 }
         weekly[k].volume += r.reps * (r.weight_kg ?? 0)
       })
       setVolumeHistory(Object.entries(weekly).map(([week, v]) => ({ week, ...v })).slice(-8))
+    }).catch(() => {
+      setLoading(false)
     })
   }, [user])
 

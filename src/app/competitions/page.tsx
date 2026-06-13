@@ -7,9 +7,14 @@ import { Plus, Swords } from "lucide-react"
 
 export default function CompetitionsPage() {
   const [comps, setComps] = useState<any[]>([])
+  const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
-    createClient().from("competitions").select("*, exercises(name), competition_participants(count)").order("created_at",{ascending:false}).then(({data})=>setComps(data??[]))
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setUserId(user.id)
+    })
+    supabase.from("competitions").select("*, exercises(name), competition_participants(count)").order("created_at",{ascending:false}).then(({data})=>setComps(data??[]))
   },[])
 
   return (
@@ -17,7 +22,7 @@ export default function CompetitionsPage() {
       <header style={{position:"sticky",top:0,zIndex:50,backgroundColor:"rgba(5,5,5,0.95)",backdropFilter:"blur(10px)",borderBottom:"1px solid #1a1a1a"}}>
         <div style={{maxWidth:1280,margin:"0 auto",height:56,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 24px"}}>
           <Link href="/dashboard" style={{fontFamily:"var(--font-heading-stack)",fontSize:16,fontWeight:700,letterSpacing:"-0.04em",textTransform:"uppercase",color:"#ffffff",textDecoration:"none"}}>PUMPS</Link>
-          <Link href="/competitions/new" className="btn-primary" style={{fontSize:12,padding:"8px 16px"}}><Plus size={14}/> CREATE</Link>
+          {userId && <Link href="/competitions/new" className="btn-primary" style={{fontSize:12,padding:"8px 16px"}}><Plus size={14}/> CREATE</Link>}
         </div>
       </header>
       <main style={{maxWidth:1280,margin:"0 auto",padding:"40px 24px"}}>

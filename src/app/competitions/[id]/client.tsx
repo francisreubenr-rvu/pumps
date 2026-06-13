@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { useParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import Link from "next/link"
@@ -16,6 +16,8 @@ export default function CompetitionDetailClient() {
   const [reps, setReps] = useState(10)
   const [isParticipant, setIsParticipant] = useState(false)
   const [elapsed, setElapsed] = useState(0)
+  const [subRetry, setSubRetry] = useState(0)
+  const reconnectRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   const load = useCallback(async () => {
     if (!id) return
@@ -41,17 +43,44 @@ export default function CompetitionDetailClient() {
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "competitions", filter: `id=eq.${id}` }, (p: any) => setComp((prev: any) => prev ? { ...prev, status: p.new.status } : prev))
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "competition_participants", filter: `competition_id=eq.${id}` }, () => load())
       .subscribe((status) => {
-        if (status === "CLOSED" || status === "CHANNEL_ERROR") console.warn("[realtime]", status)
+        if (status === "CLOSED" || status === "CHANNEL_ERROR") {
+          console.warn("[realtime]", status, "- reconnecting in 3s")
+          clearTimeout(reconnectRef.current)
+          reconnectRef.current = setTimeout(() => setSubRetry(r => r + 1), 3000)
+        }
       })
-    return () => { supabase.removeChannel(ch).catch(() => {}) }
-  }, [id, load])
+    return () => {
+      clearTimeout(reconnectRef.current)
+      supabase.removeChannel(ch).catch(() => {})
+    }
+  }, [id, load, subRetry])
 
   useEffect(() => { if (comp?.status !== "active") return; const start = Date.now(); const t = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000); return () => clearInterval(t) }, [comp?.status])
 
   async function startComp() { await createClient().from("competitions").update({ status: "active", starts_at: new Date().toISOString() }).eq("id", id) }
   async function endComp() { await createClient().from("competitions").update({ status: "completed", ends_at: new Date().toISOString() }).eq("id", id) }
-  async function joinComp() { await createClient().from("competition_participants").insert({ competition_id: id, user_id: userId }); setIsParticipant(true); load() }
-  async function logSet() { if (!isParticipant) return; await createClient().from("competition_logs").insert({ competition_id: id, user_id: userId, set_number: logs.filter(l => l.user_id === userId).length + 1, reps, weight_kg: weight }) }
+
+  async function joinComp() {
+    const { error } = await createClient().from("competition_participants").insert({ competition_id: id, user_id: userId })
+    if (error) { console.error("joinComp failed:", error); return }
+    setIsParticipant(true)
+    load()
+  }
+
+  async function logSet() {
+    if (!isParticipant) return
+    const supabase = createClient()
+    const { data: existing } = await supabase.from("competition_logs")
+      .select("set_number")
+      .eq("competition_id", id)
+      .eq("user_id", userId)
+      .order("set_number", { ascending: false })
+      .limit(1)
+      .single()
+    const nextSet = (existing?.set_number ?? 0) + 1
+    const { error } = await supabase.from("competition_logs").insert({ competition_id: id, user_id: userId, set_number: nextSet, reps, weight_kg: weight })
+    if (error) console.error("logSet failed:", error)
+  }
 
   function stats(uid: string) { const ul = logs.filter(l => l.user_id === uid); if (!comp) return ""; if (comp.type === "max_weight") return `${Math.max(...ul.map((l: any) => Number(l.weight_kg ?? 0)), 0)} kg`; if (comp.type === "max_reps") return `${Math.max(...ul.map((l: any) => l.reps), 0)} reps`; return `${ul.reduce((s: number, l: any) => s + l.reps * Number(l.weight_kg ?? 0), 0)} kg` }
   const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`

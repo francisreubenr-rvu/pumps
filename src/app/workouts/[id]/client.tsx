@@ -15,23 +15,29 @@ export default function WorkoutDetailClient() {
   useEffect(() => {
     if (!id) return
     const supabase = createClient()
-    supabase.from("workouts").select("*").eq("id", id).single().then(({ data }) => { setWorkout(data); setLoading(false) })
-    supabase.from("workout_exercises").select("*, exercises(name, category)").eq("workout_id", id).order("sort_order")
-      .then(async ({ data }) => {
-        if (!data) return
+    supabase.auth.getUser().then(({ data: authData }) => {
+      if (!authData.user) { window.location.href = "/auth/login"; return }
+      Promise.all([
+        supabase.from("workouts").select("*").eq("id", id).single(),
+        supabase.from("workout_exercises").select("*, exercises(name, category)").eq("workout_id", id).order("sort_order")
+      ]).then(async ([{ data: wData }, { data: exData }]) => {
+        setWorkout(wData)
+        setLoading(false)
+        if (!exData) return
         const supabase2 = createClient()
-        const withSets = await Promise.all(data.map(async (we: any) => {
+        const withSets = await Promise.all((exData as any[]).map(async (we: any) => {
           const { data: sets } = await supabase2.from("exercise_sets").select("*").eq("workout_exercise_id", we.id).order("set_number")
           return { ...we, sets: sets || [] }
         }))
         setExercises(withSets)
       })
+    })
   }, [id])
 
   if (loading) return <div style={{ backgroundColor: "#050505", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ color: "#8d8d8d" }}>…</span></div>
   if (!workout) return <div style={{ backgroundColor: "#050505", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ color: "#8d8d8d" }}>Not found</span></div>
 
-  const totalVolume = exercises.reduce((sum, we) => sum + we.sets.reduce((s: number, set: any) => s + (set.reps * (set.weight_kg ?? 0)), 0), 0)
+  const totalVolume = exercises.reduce((sum, we) => sum + (we.sets ?? []).reduce((s: number, set: any) => s + (set.reps * (set.weight_kg ?? 0)), 0), 0)
 
   return (
     <div style={{ backgroundColor: "#050505", minHeight: "100vh" }}>

@@ -19,7 +19,7 @@ const teko = Teko({
 export const metadata: Metadata = {
   title: "Pumps — Gym Journaling",
   description: "Track workouts. Compete with friends. Dominate the leaderboard.",
-  metadataBase: new URL("https://francisreubenr-rvu.github.io"),
+  metadataBase: new URL("https://francisreubenr-rvu.github.io/pumps"),
   openGraph: {
     title: "Pumps — Track. Compete. Dominate.",
     description: "The gym journal built for lifters who keep score.",
@@ -29,8 +29,9 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${saira.variable} ${teko.variable} dark h-full antialiased`} style={{ colorScheme: "dark" }}>
+    <html lang="en" className={`${saira.variable} ${teko.variable} dark h-full antialiased`} >
       <head>
+        <meta name="color-scheme" content="dark" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <meta name="theme-color" content="#050505" />
         <link rel="preconnect" href="https://jchfbpzucylthmgthktj.supabase.co" />

@@ -17,6 +17,7 @@ export default function WorkoutsPage() {
       if (!data.user) { router.replace("/auth/login"); return }
       supabase.from("workouts").select("*").eq("user_id", data.user.id).order("started_at", { ascending: false })
         .then(({ data }) => { setWorkouts(data ?? []); setMounted(true) })
+        .catch(() => { setWorkouts([]); setMounted(true) })
     })
   }, [])
 

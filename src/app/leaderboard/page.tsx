@@ -14,17 +14,17 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.from("exercises").select("*").order("category").then(({ data }) => setExercises(data??[]))
+    supabase.from("exercises").select("*").order("category").then(({ data }) => setExercises(data??[])).catch(() => {})
     supabase.from("exercise_sets").select(`weight_kg, reps, workout_exercises!inner(exercise_id, exercises!inner(name), workouts!inner(user_id))`).eq("completed",true).then(({data})=>{
       supabase.from("profiles").select("id, username").then(({data:profiles})=>{
         const pm = Object.fromEntries((profiles??[]).map((p:any)=>[p.id,p]))
         const ub:Record<string,any>={}; const uv:Record<string,any>={}
-        ;(data??[]).forEach((s:any)=>{const uid=s.workout_exercises.workouts.user_id;const prof=pm[uid];if(!prof)return;const w=Number(s.weight_kg??0);if(w>(ub[uid]?.weight??0))ub[uid]={weight:w,username:prof.username,exercise:s.workout_exercises.exercises.name};uv[uid]={volume:(uv[uid]?.volume??0)+s.reps*w,username:prof.username}})
+        ;(data??[]).forEach((s:any)=>{const uid=s.workout_exercises?.workouts?.user_id;const prof=pm[uid];if(!prof)return;const w=Number(s.weight_kg??0);if(w>(ub[uid]?.weight??0))ub[uid]={weight:w,username:prof.username,exercise:s.workout_exercises.exercises.name};uv[uid]={volume:(uv[uid]?.volume??0)+s.reps*w,username:prof.username}})
         setMaxWeight(Object.values(ub).sort((a:any,b:any)=>b.weight-a.weight).map((e:any,i:number)=>({rank:i+1,...e})))
         setTotalVolume(Object.values(uv).sort((a:any,b:any)=>b.volume-a.volume).map((e:any,i:number)=>({rank:i+1,...e})))
         setLoading(false)
-      })
-    })
+      }).catch(() => setLoading(false))
+    }).catch(() => setLoading(false))
   },[])
 
   const cats = [...new Set(exercises.map(e=>e.category))]

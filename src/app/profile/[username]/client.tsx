@@ -17,10 +17,10 @@ export default function ProfileClient() {
     const supabase = createClient()
     supabase.from("profiles").select("*").eq("username", username).single().then(({ data }) => {
       if (!data) return; setProfile(data)
-      supabase.from("workouts").select("*", { count: "exact", head: true }).eq("user_id", data.id).then(({ count }) => setWorkoutCount(count ?? 0))
-      supabase.from("exercise_sets").select("reps, weight_kg, workout_exercises!inner(workout_id, workouts!inner(user_id))").eq("workout_exercises.workouts.user_id", data.id).eq("completed", true).then(({ data: sets }) => setVolume((sets ?? []).reduce((s: number, r: any) => s + r.reps * (r.weight_kg ?? 0), 0)))
-      supabase.from("workouts").select("*").eq("user_id", data.id).order("started_at", { ascending: false }).limit(5).then(({ data }) => setRecent(data ?? []))
-    })
+      supabase.from("workouts").select("*", { count: "exact", head: true }).eq("user_id", data.id).then(({ count }) => setWorkoutCount(count ?? 0)).catch(() => {})
+      supabase.from("exercise_sets").select("reps, weight_kg, workout_exercises!inner(workout_id, workouts!inner(user_id))").eq("workout_exercises.workouts.user_id", data.id).eq("completed", true).then(({ data: sets }) => setVolume((sets ?? []).reduce((s: number, r: any) => s + r.reps * (r.weight_kg ?? 0), 0))).catch(() => {})
+      supabase.from("workouts").select("*").eq("user_id", data.id).order("started_at", { ascending: false }).limit(5).then(({ data }) => setRecent(data ?? [])).catch(() => {})
+    }).catch(() => {})
   }, [username])
 
   if (!profile) return <div style={{ backgroundColor: "#050505", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ color: "#8d8d8d" }}>Profile not found</span></div>

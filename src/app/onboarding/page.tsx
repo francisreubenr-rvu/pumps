@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 
 export default function OnboardingPage() {
   const [username, setUsername] = useState("")
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState("")
   const router = useRouter()
 
   useEffect(() => {
@@ -20,12 +20,29 @@ export default function OnboardingPage() {
   }, [router])
 
   async function save(e: React.FormEvent) {
-    e.preventDefault(); if (!username || username.length < 3) return; setBusy(true)
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setBusy(false); return }
-    await supabase.from("profiles").update({ username }).eq("id", user.id)
-    router.push("/dashboard")
+    e.preventDefault()
+    if (!username || username.length < 3) return
+    setError("")
+    setBusy(true)
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setBusy(false); return }
+      const { error: saveError } = await supabase.from("profiles").upsert({ id: user.id, username }, { onConflict: "id" })
+      if (saveError) {
+        if (saveError.code === "23505") {
+          setError("That username is already taken. Try another.")
+        } else {
+          setError(saveError.message)
+        }
+        setBusy(false)
+        return
+      }
+      router.push("/dashboard")
+    } catch {
+      setError("Network error. Please try again.")
+      setBusy(false)
+    }
   }
 
   return (
@@ -41,6 +58,11 @@ export default function OnboardingPage() {
               <label htmlFor="onboard-username" className="label-sm">USERNAME</label>
               <input id="onboard-username" name="username" type="text" required minLength={3} maxLength={30} placeholder="your_gym_name" value={username} onChange={e => setUsername(e.target.value)} className="input-field" />
             </div>
+            {error && (
+              <p role="alert" style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 600, padding: "8px 12px", background: "var(--surface-elevated)", color: "var(--accent-red)" }}>
+                {error}
+              </p>
+            )}
             <button type="submit" disabled={busy || username.length < 3} className="btn-primary" style={{ width: "100%", justifyContent: "center", padding: "14px 0" }}>
               {busy ? "Saving…" : "Let's Go"}
             </button>

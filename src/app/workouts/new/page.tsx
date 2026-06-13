@@ -34,16 +34,22 @@ export default function NewWorkoutPage() {
 
   async function save() {
     if (!user) return; setSaving(true)
-    const supabase = createClient()
-    const { data: w } = await supabase.from("workouts").insert({ user_id: user.id, name: workoutName || "Workout", started_at: new Date(startTime).toISOString(), completed_at: new Date().toISOString() }).select().single()
-    if (!w) { setSaving(false); return }
-    for (const [idx, eid] of selected.entries()) {
-      const { data: we } = await supabase.from("workout_exercises").insert({ workout_id: w.id, exercise_id: eid, sort_order: idx }).select().single()
-      if (!we) continue
-      const es = sets[eid] || []
-      await supabase.from("exercise_sets").insert(es.map((s, i) => ({ workout_exercise_id: we.id, set_number: i + 1, reps: s.reps, weight_kg: s.weight, completed: s.completed })))
+    try {
+      const supabase = createClient()
+      const { data: w } = await supabase.from("workouts").insert({ user_id: user.id, name: workoutName || "Workout", started_at: new Date(startTime).toISOString(), completed_at: new Date().toISOString() }).select().single()
+      if (!w) return
+      for (const [idx, eid] of selected.entries()) {
+        const { data: we } = await supabase.from("workout_exercises").insert({ workout_id: w.id, exercise_id: eid, sort_order: idx }).select().single()
+        if (!we) continue
+        const es = sets[eid] || []
+        await supabase.from("exercise_sets").insert(es.map((s, i) => ({ workout_exercise_id: we.id, set_number: i + 1, reps: s.reps, weight_kg: s.weight, completed: s.completed })))
+      }
+      router.push(`/workouts/${w.id}`)
+    } catch {
+      // silently fail — user can retry
+    } finally {
+      setSaving(false)
     }
-    setSaving(false); router.push(`/workouts/${w.id}`)
   }
 
   const cats = [...new Set(exercises.map(e => e.category))]

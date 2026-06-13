@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { Plus } from "lucide-react"
@@ -9,9 +10,10 @@ export default function ExercisesPage() {
   const [exercises, setExercises] = useState<any[]>([])
   const [name, setName] = useState("")
   const [category, setCategory] = useState("")
+  const router = useRouter()
 
   async function load() { const { data } = await createClient().from("exercises").select("*").order("category"); setExercises(data ?? []) }
-  useEffect(() => { load() }, [])
+  useEffect(() => { const supabase = createClient(); supabase.auth.getUser().then(({ data }) => { if (!data.user) { router.replace("/auth/login"); return } load() }) }, [router])
 
   async function add() { if (!name||!category) return; await createClient().from("exercises").insert({name,category}); setName("");setCategory("");load() }
 
