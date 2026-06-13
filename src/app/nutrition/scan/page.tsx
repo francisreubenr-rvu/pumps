@@ -37,11 +37,21 @@ export default function FoodScanPage() {
     return () => { stream?.getTracks().forEach(t => t.stop()) }
   }, [stream])
 
+  // Attach the stream once the <video> element has actually mounted.
+  // (In startCamera the video isn't rendered yet, so videoRef is still null there.)
+  useEffect(() => {
+    const video = videoRef.current
+    if (video && stream) {
+      video.srcObject = stream
+      video.play().catch(() => {})
+    }
+  }, [stream])
+
   async function startCamera() {
+    setScanError("")
     try {
-      const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+      const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } } })
       setStream(s)
-      if (videoRef.current) videoRef.current.srcObject = s
     } catch {
       setScanError("Camera access denied. Please allow camera permissions.")
     }
@@ -129,7 +139,7 @@ export default function FoodScanPage() {
 
           {stream && (
             <div style={{ position: "relative" }}>
-              <video ref={videoRef} autoPlay playsInline style={{ width: "100%", display: "block", background: "#000" }} />
+              <video ref={videoRef} autoPlay playsInline muted style={{ width: "100%", display: "block", background: "#000" }} />
               <button
                 type="button"
                 onClick={captureFrame}
