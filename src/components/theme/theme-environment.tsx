@@ -251,9 +251,7 @@ function ParticleField({ mode }: { mode: Mode }) {
       aria-hidden
       style={{
         position: "fixed",
-        inset: 0,
-        width: "100vw",
-        height: "100dvh",
+        inset: 0, // sized to the layout viewport via resize() — avoids 100vw scrollbar overflow
         zIndex: 55,
         pointerEvents: "none",
       }}

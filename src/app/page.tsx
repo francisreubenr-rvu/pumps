@@ -29,6 +29,18 @@ function useScrollProgress(ref: React.RefObject<HTMLElement | null>) {
   return progress
 }
 
+/* ─── Mobile breakpoint hook (mount-safe — no SSR hydration mismatch) ─── */
+function useIsMobile(bp = 768) {
+  const [mobile, setMobile] = useState(false)
+  useEffect(() => {
+    const update = () => setMobile(window.innerWidth < bp)
+    update()
+    window.addEventListener("resize", update)
+    return () => window.removeEventListener("resize", update)
+  }, [bp])
+  return mobile
+}
+
 /* ─── Fade-in-on-scroll utility ─── */
 function FadeSection({ children, delay = 0, style }: { children: React.ReactNode; delay?: number; style?: React.CSSProperties }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -58,6 +70,7 @@ function FadeSection({ children, delay = 0, style }: { children: React.ReactNode
 export default function LandingPage() {
   const heroRef = useRef<HTMLElement>(null)
   const progress = useScrollProgress(heroRef as React.RefObject<HTMLElement>)
+  const isMobile = useIsMobile()
 
   return (
     <div style={{ backgroundColor: "transparent", overflowX: "hidden" }}>
@@ -94,7 +107,7 @@ export default function LandingPage() {
       ══════════════════════════════════════ */}
       <section
         ref={heroRef}
-        style={{ height: "200vh", position: "relative" }}
+        style={{ height: isMobile ? "170vh" : "200vh", position: "relative" }}
         aria-label="Hero"
       >
         {/* Sticky canvas container */}

@@ -183,6 +183,11 @@ export function DumbbellCanvas({ progress }: DumbbellCanvasProps) {
   // so it never sits frozen — it shrinks + fades out right as DOMINATE lands.
   const sceneFade = progress > 0.86 ? Math.max(0, 1 - (progress - 0.86) / 0.14) : 1
 
+  // The dumbbell is a wide horizontal object. On narrow/portrait screens, pull the
+  // camera back so the full bar fits in frame instead of being cropped at the sides.
+  const vw = typeof window !== "undefined" ? window.innerWidth : 1200
+  const camZ = vw < 420 ? 8.4 : vw < 600 ? 7.4 : vw < 900 ? 6.4 : 5.5
+
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       {/* Three.js canvas — fades + scales down toward the end of the scroll */}
@@ -194,7 +199,7 @@ export function DumbbellCanvas({ progress }: DumbbellCanvasProps) {
         willChange: "opacity, transform",
       }}>
         <Canvas
-          camera={{ position: [0, 0, 5.5], fov: 40 }}
+          camera={{ position: [0, 0, camZ], fov: 40 }}
           gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.3 }}
           dpr={[1, 2]}
           style={{ background: "transparent" }}
