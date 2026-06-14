@@ -4,8 +4,18 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { useCreateWorkout } from "@/lib/queries/mutations"
-import { Plus, Trash2, Save, Clock, Check } from "lucide-react"
+import { Plus, Trash2, Save, Clock, Check, RotateCcw } from "lucide-react"
 import { DetailShell, Card, PageTitle } from "@/components/ui/kinetic"
+
+// Local draft so an in-progress workout survives a refresh, crash, or accidental
+// navigation — you never lose a logged session. One draft at a time (per device).
+const DRAFT_KEY = "kinetic_workout_draft"
+type WorkoutDraft = {
+  workoutName: string
+  selected: string[]
+  sets: Record<string, { reps: number; weight: number; completed: boolean }[]>
+  startTime: number
+}
 
 export default function NewWorkoutPage() {
   const [user, setUser] = useState<any>(null)
@@ -16,8 +26,12 @@ export default function NewWorkoutPage() {
   const [sets, setSets] = useState<Record<string, { reps: number; weight: number; completed: boolean }[]>>({})
   const [workoutName, setWorkoutName] = useState("")
   const [saving, setSaving] = useState(false)
-  const [startTime] = useState(() => Date.now())
+  const [startTime, setStartTime] = useState(() => Date.now())
   const [elapsed, setElapsed] = useState(0)
+  // `hydrated` gates the persist effect until the restore effect has run, so we
+  // never overwrite a saved draft with the empty initial state.
+  const [hydrated, setHydrated] = useState(false)
+  const [draftRestored, setDraftRestored] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
@@ -26,6 +40,51 @@ export default function NewWorkoutPage() {
     const t = setInterval(() => setElapsed(Math.floor((Date.now() - startTime) / 1000)), 1000)
     return () => clearInterval(t)
   }, [router, startTime])
+
+  // Restore a saved draft once, after mount (localStorage is client-only —
+  // reading it during render would diverge from the server HTML / hydration).
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY)
+      if (raw) {
+        const d = JSON.parse(raw) as WorkoutDraft
+        if (d?.selected?.length || d?.workoutName) {
+          setWorkoutName(d.workoutName ?? "")
+          setSelected(d.selected ?? [])
+          setSets(d.sets ?? {})
+          if (typeof d.startTime === "number") setStartTime(d.startTime)
+          setDraftRestored(true)
+        }
+      }
+    } catch { /* corrupt draft — ignore */ }
+    setHydrated(true)
+  }, [])
+
+  // Persist the draft whenever it changes (after hydration).
+  useEffect(() => {
+    if (!hydrated) return
+    const hasContent = selected.length > 0 || workoutName.trim() !== ""
+    try {
+      if (hasContent) {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({ workoutName, selected, sets, startTime }))
+      } else {
+        localStorage.removeItem(DRAFT_KEY)
+      }
+    } catch { /* storage full / unavailable — non-fatal */ }
+  }, [hydrated, workoutName, selected, sets, startTime])
+
+  function clearDraft() {
+    try { localStorage.removeItem(DRAFT_KEY) } catch { /* ignore */ }
+  }
+
+  function discardDraft() {
+    clearDraft()
+    setWorkoutName("")
+    setSelected([])
+    setSets({})
+    setStartTime(Date.now())
+    setDraftRestored(false)
+  }
 
   function addEx(id: string) { if (selected.includes(id)) return; setSelected([...selected, id]); setSets({ ...sets, [id]: [] }) }
   function removeEx(id: string) { setSelected(selected.filter(x => x !== id)); const ns = { ...sets }; delete ns[id]; setSets(ns) }
@@ -53,6 +112,7 @@ export default function NewWorkoutPage() {
           sets: (sets[eid] || []).map(s => ({ reps: s.reps, weight: s.weight })),
         })),
       })
+      clearDraft() // workout committed — the draft is no longer needed
       router.push(`/workouts/${id}`)
     } catch (err) {
       console.error("Save workout failed:", err)
@@ -76,6 +136,16 @@ export default function NewWorkoutPage() {
     >
       <div className="k-section">
         <PageTitle title="New Workout" />
+        {draftRestored && (
+          <div className="card-surface" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 14px", marginTop: 16, flexWrap: "wrap" }}>
+            <span className="k-row-sub" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <RotateCcw size={13} style={{ color: "var(--accent)" }} aria-hidden="true" /> Resumed your in-progress workout.
+            </span>
+            <button type="button" onClick={discardDraft} className="k-eyebrow" style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer" }}>
+              Discard
+            </button>
+          </div>
+        )}
         <input value={workoutName} onChange={e => setWorkoutName(e.target.value)} placeholder="Workout name" className="input-field" style={{ maxWidth: 320, marginTop: 16 }} />
       </div>
 
