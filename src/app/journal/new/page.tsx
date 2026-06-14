@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { resolveExerciseId } from "@/lib/exercises"
 import { AppNav } from "@/components/layout/nav"
 import { useMode, JOURNAL_PROMPTS } from "@/lib/mode-context"
 import { Loader2, Zap, Check } from "lucide-react"
@@ -104,12 +105,10 @@ export default function NewJournalPage() {
       if (wk) {
         for (let i = 0; i < parsedWorkout.length; i++) {
           const ex = parsedWorkout[i]
-          const { data: exercise } = await supabase.from("exercises").select("id").eq("name", ex.name).single()
-          let exerciseId = exercise?.id
-          if (!exerciseId) {
-            const { data: newEx } = await supabase.from("exercises").insert({ name: ex.name, category: "other" }).select("id").single()
-            exerciseId = newEx?.id
-          }
+          // Resolve to a canonical exercise via the alias layer (handles
+          // "bench" / "Bench Press" / "barbell bench" → one entity) instead of
+          // exact-matching and creating a duplicate on every variant.
+          const exerciseId = await resolveExerciseId(supabase, ex.name)
           if (!exerciseId) continue
           const { data: we } = await supabase.from("workout_exercises").insert({ workout_id: wk.id, exercise_id: exerciseId, sort_order: i }).select("id").single()
           if (we) {
