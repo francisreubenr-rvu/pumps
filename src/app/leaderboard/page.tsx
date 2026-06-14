@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { Crown, Medal } from "lucide-react"
 import { AppNav } from "@/components/layout/nav"
+import { Podium } from "@/components/leaderboard/podium"
 import { useLeaderboard, useWeeklyLeaderboard, currentWeekStart } from "@/lib/queries/leaderboard"
 
 function LBTable({ data, vk, u, showEx }: { data: any[]; vk: string; u: string; showEx?: boolean }) {
@@ -46,6 +47,23 @@ function LBTable({ data, vk, u, showEx }: { data: any[]; vk: string; u: string; 
   )
 }
 
+// A full board: top-3 podium + the rest as a ranked list.
+function Board({ data, vk, u, showEx }: { data: any[]; vk: string; u: string; showEx?: boolean }) {
+  if (!data || data.length === 0) return <LBTable data={[]} vk={vk} u={u} showEx={showEx} />
+  const top3 = data.filter(d => d.rank <= 3)
+  const rest = data.filter(d => d.rank > 3)
+  return (
+    <>
+      <Podium data={top3} vk={vk} u={u} />
+      {rest.length > 0 && (
+        <div style={{ marginTop: 20 }}>
+          <LBTable data={rest} vk={vk} u={u} showEx={showEx} />
+        </div>
+      )}
+    </>
+  )
+}
+
 export default function LeaderboardPage() {
   const [tab, setTab] = useState("max-weight")
 
@@ -71,12 +89,10 @@ export default function LeaderboardPage() {
     <div style={{ backgroundColor: "var(--bg)", minHeight: "100vh" }}>
       <AppNav />
       <main style={{ maxWidth: 1280, margin: "0 auto", padding: "40px 24px" }}>
-        <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(36px, 5vw, 56px)", fontWeight: 600, letterSpacing: "-0.02em", textTransform: "uppercase", color: "var(--fg)", lineHeight: 1.05, marginBottom: 4 }}>
+        <p className="k-eyebrow" style={{ color: "var(--accent)", marginBottom: 8 }}>Who dominates the gym</p>
+        <h1 style={{ fontFamily: "var(--font-heading-stack)", fontSize: "clamp(30px, 4.5vw, 44px)", fontWeight: 600, letterSpacing: "-0.03em", color: "var(--fg)", lineHeight: 1.05, marginBottom: 32 }}>
           Leaderboards
         </h1>
-        <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 13, fontWeight: 500, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--accent)", marginBottom: 32 }}>
-          Who Dominates The Gym
-        </p>
 
         <div style={{ display: "flex", gap: 2, marginBottom: 32, flexWrap: "wrap" }}>
           {TABS.map(t => (
@@ -100,7 +116,7 @@ export default function LeaderboardPage() {
             {weeklyLoading ? (
               <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, color: "var(--text-secondary)" }}>Loading…</p>
             ) : (
-              <LBTable data={weeklyData.map((r, i) => ({ ...r, rank: i + 1, weight: r.max_weight }))} vk="weight" u="kg" showEx />
+              <Board data={weeklyData.map((r, i) => ({ ...r, rank: i + 1, weight: r.max_weight }))} vk="weight" u="kg" showEx />
             )}
           </div>
         )}
@@ -115,9 +131,9 @@ export default function LeaderboardPage() {
                 <button onClick={() => refetch()} className="btn-outline" style={{ fontSize: 11, padding: "8px 16px" }}>Retry</button>
               </div>
             ) : tab === "max-weight" ? (
-              <LBTable data={maxWeight} vk="weight" u="kg" showEx />
+              <Board data={maxWeight} vk="weight" u="kg" showEx />
             ) : (
-              <LBTable data={totalVolume} vk="volume" u="kg" />
+              <Board data={totalVolume} vk="volume" u="kg" />
             )}
           </div>
         )}
