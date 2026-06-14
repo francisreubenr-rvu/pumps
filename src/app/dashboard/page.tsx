@@ -1,11 +1,11 @@
 "use client"
 
 import { useEffect } from "react"
+import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { TrendingUp, Swords, Plus, Flame, Zap, ChevronRight, Clock } from "lucide-react"
 import { useUser } from "@/lib/queries/auth"
 import { useDashboardData } from "@/lib/queries/dashboard"
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts"
 import {
   PageShell,
   SectionHeader,
@@ -15,6 +15,13 @@ import {
   ListRow,
   EmptyState,
 } from "@/components/ui/kinetic"
+
+// recharts is heavy — load it on demand so it stays out of the dashboard's
+// initial JS (the chart is one of several sections).
+const BarSeriesChart = dynamic(() => import("@/components/charts/bar-series-chart"), {
+  ssr: false,
+  loading: () => <div style={{ height: 200 }} aria-hidden="true" />,
+})
 
 function greeting(): string {
   const h = new Date().getHours()
@@ -95,20 +102,7 @@ export default function DashboardPage() {
           action={<span className="k-eyebrow">Last 8 weeks</span>}
         />
         {hasVolumeHistory ? (
-          <div style={{ height: 200 }} aria-hidden="true">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={volumeHistory}>
-                <XAxis dataKey="week" stroke="var(--text-secondary)" fontSize={10} />
-                <YAxis stroke="var(--text-secondary)" fontSize={10} />
-                <Tooltip contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 0, fontSize: 12, fontFamily: "var(--font-heading-stack)" }} />
-                <Bar dataKey="volume" radius={[0, 0, 0, 0]}>
-                  {volumeHistory.map((_, i) => (
-                    <Cell key={i} fill={i === volumeHistory.length - 1 ? "var(--accent)" : "var(--surface-elevated)"} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <BarSeriesChart data={volumeHistory} xKey="week" yKey="volume" height={200} highlightLast />
         ) : (
           <EmptyState
             message={loading ? "Loading…" : "Log a workout to see your volume history"}
