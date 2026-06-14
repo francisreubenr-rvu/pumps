@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
 import { TrendingUp, Swords, Plus, Activity, Zap, ChevronRight, Clock } from "lucide-react"
 import { useMode } from "@/lib/mode-context"
+import { useUser } from "@/lib/queries/auth"
+import { useDashboardData } from "@/lib/queries/dashboard"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts"
 import {
   PageShell,
@@ -18,77 +19,24 @@ import {
 } from "@/components/ui/kinetic"
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<any>(null)
-  const [workoutCount, setWorkoutCount] = useState(0)
-  const [volume, setVolume] = useState(0)
-  const [recentWorkouts, setRecentWorkouts] = useState<any[]>([])
-  const [activeComps, setActiveComps] = useState<any[]>([])
-  const [volumeHistory, setVolumeHistory] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const router = useRouter()
   const { mode, meta } = useMode()
 
+  const { data: user, isLoading: userLoading } = useUser()
+  const { data, isPending } = useDashboardData(user?.id)
+
+  // Redirect to login only once we know there is no session (avoids bouncing
+  // mid-load). TanStack Query owns all fetching, caching, and focus-refetch.
   useEffect(() => {
-    const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) { router.replace("/auth/login"); return }
-      setUser(data.user)
-    })
-  }, [router])
+    if (!userLoading && !user) router.replace("/auth/login")
+  }, [userLoading, user, router])
 
-  useEffect(() => {
-    if (!user) return
-    let cancelled = false
-
-    async function loadStats() {
-      const supabase = createClient()
-
-      // Volume reflects every set the user logs. Sets default to completed=false
-      // (the in-workout checkmark is rarely toggled), so filtering on completed
-      // would zero out real logs — count all sets to match what users actually save.
-      const [wc, vol, rw, ac, vh] = await Promise.all([
-        supabase.from("workouts").select("*", { count: "exact", head: true }).eq("user_id", user.id),
-        supabase.from("exercise_sets").select("reps, weight_kg, workout_exercises!inner(workout_id, workouts!inner(user_id))").eq("workout_exercises.workouts.user_id", user.id),
-        supabase.from("workouts").select("*").eq("user_id", user.id).order("started_at", { ascending: false }).limit(6),
-        supabase.from("competitions").select("*, exercises(name)").eq("status", "active").limit(4),
-        supabase.from("exercise_sets").select("reps, weight_kg, created_at, workout_exercises!inner(workouts!inner(started_at))").eq("workout_exercises.workouts.user_id", user.id).order("created_at", { ascending: true }),
-      ])
-
-      // Surface query errors instead of swallowing them.
-      for (const [name, res] of [["workout count", wc], ["volume", vol], ["recent workouts", rw], ["active comps", ac], ["volume history", vh]] as const) {
-        if (res?.error) console.error(`Dashboard ${name} query failed:`, res.error)
-      }
-
-      if (cancelled) return
-
-      setWorkoutCount(wc?.count ?? 0)
-      setVolume(vol?.data?.reduce((s: number, r: any) => s + (r.reps * (r.weight_kg ?? 0)), 0) ?? 0)
-      setRecentWorkouts(rw?.data ?? [])
-      setActiveComps(ac?.data ?? [])
-      setLoading(false)
-
-      const weekly: Record<string, { volume: number }> = {}
-      ;(vh?.data ?? []).forEach((r: any) => {
-        const d = new Date(r.workout_exercises?.workouts?.started_at)
-        d.setDate(d.getDate() - d.getDay())
-        const k = d.toISOString().slice(0, 10)
-        if (!weekly[k]) weekly[k] = { volume: 0 }
-        weekly[k].volume += r.reps * (r.weight_kg ?? 0)
-      })
-      setVolumeHistory(Object.entries(weekly).map(([week, v]) => ({ week, ...v })).slice(-8))
-    }
-
-    loadStats().catch((err) => {
-      if (!cancelled) { console.error("Dashboard load failed:", err); setLoading(false) }
-    })
-
-    // Refetch when the tab/window regains focus so a freshly-saved workout
-    // shows up after navigating back, without a manual re-render.
-    const onFocus = () => { loadStats().catch((err) => console.error("Dashboard refetch failed:", err)) }
-    window.addEventListener("focus", onFocus)
-    return () => { cancelled = true; window.removeEventListener("focus", onFocus) }
-  }, [user])
-
+  const loading = userLoading || (!!user && isPending)
+  const workoutCount = data?.workoutCount ?? 0
+  const volume = data?.volume ?? 0
+  const recentWorkouts = data?.recentWorkouts ?? []
+  const activeComps = data?.activeComps ?? []
+  const volumeHistory = data?.volumeHistory ?? []
   const hasVolumeHistory = volumeHistory.length > 0
 
   const quickActions = [

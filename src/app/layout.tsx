@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next"
 import { Saira, Teko } from "next/font/google"
 import { ModeProvider } from "@/lib/mode-context"
+import { QueryProvider } from "@/lib/query-provider"
 import { ThemeEnvironment } from "@/components/theme/theme-environment"
 import "./globals.css"
 
@@ -60,7 +61,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             __html: `(function(){try{var m=localStorage.getItem("kinetic_mode");var allowed=["monk","revenge","winter","happy"];var b=document.body;b.classList.remove("mode-monk","mode-revenge","mode-winter","mode-happy");if(allowed.indexOf(m)!==-1){b.classList.add("mode-"+m);}}catch(e){}})();`,
           }}
         />
-        <ModeProvider><ThemeEnvironment />{children}</ModeProvider>
+        <QueryProvider>
+          <ModeProvider><ThemeEnvironment />{children}</ModeProvider>
+        </QueryProvider>
       </body>
     </html>
   )

@@ -2,13 +2,16 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
+import { queryKeys } from "@/lib/queries/keys"
 import { Plus, Trash2, Save, Clock, Check } from "lucide-react"
 import { DetailShell, Card, PageTitle } from "@/components/ui/kinetic"
 
 export default function NewWorkoutPage() {
   const [user, setUser] = useState<any>(null)
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [exercises, setExercises] = useState<any[]>([])
   const [selected, setSelected] = useState<string[]>([])
   const [sets, setSets] = useState<Record<string, { reps: number; weight: number; completed: boolean }[]>>({})
@@ -55,6 +58,14 @@ export default function NewWorkoutPage() {
         const { error: sErr } = await supabase.from("exercise_sets").insert(es.map((s, i) => ({ workout_exercise_id: we.id, set_number: i + 1, reps: s.reps, weight_kg: s.weight, completed: true })))
         if (sErr) console.error("Exercise sets insert failed:", sErr)
       }
+      // Invalidate every cache that reflects this workout so the dashboard,
+      // workouts list, and progress charts refetch on next view — instantly,
+      // without relying on a window-focus event (which client-side navigation
+      // doesn't fire).
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all(user.id) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.workouts.list(user.id) })
+      queryClient.invalidateQueries({ queryKey: queryKeys.progress.all(user.id) })
+
       router.push(`/workouts/${w.id}`)
     } catch (err) {
       console.error("Save workout failed:", err)
