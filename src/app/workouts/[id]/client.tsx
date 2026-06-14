@@ -2,53 +2,34 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { useQueryClient } from "@tanstack/react-query"
 import { Trash2 } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useUser } from "@/lib/queries/auth"
-import { queryKeys } from "@/lib/queries/keys"
-import { recordAuditEvent } from "@/lib/audit"
+import { useSoftDeleteWorkout } from "@/lib/queries/mutations"
 import { DetailShell, Card, Badge, Eyebrow, Fill } from "@/components/ui/kinetic"
 
 export default function WorkoutDetailClient() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
-  const queryClient = useQueryClient()
   const { data: user } = useUser()
+  const deleteWorkout = useSoftDeleteWorkout(user?.id)
   const [workout, setWorkout] = useState<any>(null)
   const [exercises, setExercises] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [deleting, setDeleting] = useState(false)
 
-  // Soft delete: stamp deleted_at instead of removing the row. RLS (00011)
-  // then hides the workout and its sets from every read, so its volume drops
-  // out of the dashboard, progress, and leaderboards — but the data is
-  // recoverable and the audit trail records who deleted what.
+  // Soft delete: stamp deleted_at instead of removing the row. The mutation
+  // optimistically drops the card from the workouts list and RLS (00011) then
+  // hides the workout + its sets from every read (volume leaves the dashboard,
+  // progress, and leaderboards) — recoverable, and audited.
   async function softDelete() {
     if (!user) return
-    setDeleting(true)
-    const supabase = createClient()
-    const { error } = await supabase
-      .from("workouts")
-      .update({ deleted_at: new Date().toISOString() })
-      .eq("id", id)
-    if (error) {
-      console.error("Soft-delete failed:", error)
-      setDeleting(false)
-      return
+    try {
+      await deleteWorkout.mutateAsync(id)
+      router.push("/workouts")
+    } catch (err) {
+      console.error("Soft-delete failed:", err)
     }
-    recordAuditEvent(supabase, {
-      actorId: user.id,
-      action: "workout.delete",
-      entityType: "workout",
-      entityId: id,
-      metadata: { name: workout?.name },
-    })
-    queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all(user.id) })
-    queryClient.invalidateQueries({ queryKey: queryKeys.workouts.list(user.id) })
-    queryClient.invalidateQueries({ queryKey: queryKeys.progress.all(user.id) })
-    router.push("/workouts")
   }
 
   useEffect(() => {
@@ -128,9 +109,9 @@ export default function WorkoutDetailClient() {
           <>
             <span className="k-row-sub">Delete this workout? It’s removed from your stats but recoverable.</span>
             <span style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => setConfirmDelete(false)} disabled={deleting} className="btn-outline" style={{ fontSize: 11, padding: "8px 16px" }}>Cancel</button>
-              <button onClick={softDelete} disabled={deleting} className="btn-primary" style={{ fontSize: 11, padding: "8px 16px", background: "var(--danger)", color: "#fff" }}>
-                {deleting ? "Deleting…" : "Delete"}
+              <button onClick={() => setConfirmDelete(false)} disabled={deleteWorkout.isPending} className="btn-outline" style={{ fontSize: 11, padding: "8px 16px" }}>Cancel</button>
+              <button onClick={softDelete} disabled={deleteWorkout.isPending} className="btn-primary" style={{ fontSize: 11, padding: "8px 16px", background: "var(--danger)", color: "#fff" }}>
+                {deleteWorkout.isPending ? "Deleting…" : "Delete"}
               </button>
             </span>
           </>

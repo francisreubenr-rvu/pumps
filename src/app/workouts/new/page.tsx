@@ -2,17 +2,15 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
-import { queryKeys } from "@/lib/queries/keys"
-import { recordAuditEvent } from "@/lib/audit"
+import { useCreateWorkout } from "@/lib/queries/mutations"
 import { Plus, Trash2, Save, Clock, Check } from "lucide-react"
 import { DetailShell, Card, PageTitle } from "@/components/ui/kinetic"
 
 export default function NewWorkoutPage() {
   const [user, setUser] = useState<any>(null)
   const router = useRouter()
-  const queryClient = useQueryClient()
+  const createWorkout = useCreateWorkout(user?.id)
   const [exercises, setExercises] = useState<any[]>([])
   const [selected, setSelected] = useState<string[]>([])
   const [sets, setSets] = useState<Record<string, { reps: number; weight: number; completed: boolean }[]>>({})
@@ -45,38 +43,17 @@ export default function NewWorkoutPage() {
 
     setSaving(true)
     try {
-      const supabase = createClient()
-      const { data: w, error: wErr } = await supabase.from("workouts").insert({ user_id: user.id, name: workoutName || "Workout", started_at: new Date(startTime).toISOString(), completed_at: new Date().toISOString() }).select().single()
-      if (wErr || !w) { console.error("Workout insert failed:", wErr); return }
-      for (const [idx, eid] of toSave.entries()) {
-        const { data: we, error: weErr } = await supabase.from("workout_exercises").insert({ workout_id: w.id, exercise_id: eid, sort_order: idx }).select().single()
-        if (weErr || !we) { console.error("Workout exercise insert failed:", weErr); continue }
-        const es = sets[eid] || []
-        // Finishing the workout ("COMPLETE WORKOUT") finalizes every set: mark
-        // them completed so they count toward leaderboards/profiles (RLS exposes
-        // only completed=true sets cross-user). The in-session checkmark is just
-        // a live indicator and is rarely toggled before saving.
-        const { error: sErr } = await supabase.from("exercise_sets").insert(es.map((s, i) => ({ workout_exercise_id: we.id, set_number: i + 1, reps: s.reps, weight_kg: s.weight, completed: true })))
-        if (sErr) console.error("Exercise sets insert failed:", sErr)
-      }
-      // Invalidate every cache that reflects this workout so the dashboard,
-      // workouts list, and progress charts refetch on next view — instantly,
-      // without relying on a window-focus event (which client-side navigation
-      // doesn't fire).
-      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all(user.id) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.workouts.list(user.id) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.progress.all(user.id) })
-
-      // Audit trail (best-effort; inert until migration 00010 is applied).
-      recordAuditEvent(supabase, {
-        actorId: user.id,
-        action: "workout.create",
-        entityType: "workout",
-        entityId: w.id,
-        metadata: { name: w.name, exercises: toSave.length },
+      // The create mutation owns the inserts, audit event, and cache
+      // invalidation (see useCreateWorkout).
+      const id = await createWorkout.mutateAsync({
+        name: workoutName,
+        startedAt: new Date(startTime).toISOString(),
+        exercises: toSave.map(eid => ({
+          exerciseId: eid,
+          sets: (sets[eid] || []).map(s => ({ reps: s.reps, weight: s.weight })),
+        })),
       })
-
-      router.push(`/workouts/${w.id}`)
+      router.push(`/workouts/${id}`)
     } catch (err) {
       console.error("Save workout failed:", err)
     } finally {
