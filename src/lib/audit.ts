@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
+import { log } from "@/lib/log"
 
 /** Entities that can appear in the audit trail. */
 export type AuditEntityType =
@@ -40,8 +41,8 @@ export async function recordAuditEvent(
       entity_id: params.entityId ?? null,
       metadata: params.metadata ?? {},
     })
-    if (error) console.error("[audit] failed to record", params.action, error.message)
+    if (error) log.error("audit.record_failed", { action: params.action, detail: error.message })
   } catch (err) {
-    console.error("[audit] unexpected error recording", params.action, err)
+    log.exception("audit.record_error", err, { action: params.action })
   }
 }

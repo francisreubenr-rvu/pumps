@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { callDeepSeekStructured, withGuardrail, deepSeekErrorResponse } from "@/lib/deepseek"
+import { log } from "@/lib/log"
 import { createServiceSupabaseClient } from "@/lib/supabase/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
@@ -68,7 +69,7 @@ ${workoutSummary ? `\nWorkout stats: ${JSON.stringify(workoutSummary)}` : ""}
 
     return NextResponse.json(parsed)
   } catch (err) {
-    console.error("[journal-insights]", err)
+    log.exception("ai.journal_insights_error", err)
     const mapped = deepSeekErrorResponse(err)
     if (mapped) return NextResponse.json(mapped.body, { status: mapped.status })
     return NextResponse.json({ error: "Failed to generate insights" }, { status: 500 })

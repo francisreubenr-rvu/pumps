@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { callDeepSeekStructured, withGuardrail, deepSeekErrorResponse } from "@/lib/deepseek"
+import { log } from "@/lib/log"
 
 // NOTE (vision model): DeepSeek's public chat-completions API
 // (api.deepseek.com) currently only serves text models (deepseek-chat /
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(parsed)
   } catch (err) {
-    console.error("[calorie-scan]", err)
+    log.exception("ai.calorie_scan_error", err)
     const mapped = deepSeekErrorResponse(err)
     if (mapped) return NextResponse.json(mapped.body, { status: mapped.status })
     return NextResponse.json({ error: "Failed to scan food" }, { status: 500 })
