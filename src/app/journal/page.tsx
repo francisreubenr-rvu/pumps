@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { createClient } from "@/lib/supabase/client"
+import { useUser } from "@/lib/queries/auth"
+import { useJournalEntries } from "@/lib/queries/journal"
 import { AppNav } from "@/components/layout/nav"
 import { Plus, BookOpen, Zap } from "lucide-react"
 
@@ -18,36 +19,17 @@ function MoodDots({ value, max = 5 }: { value: number; max?: number }) {
 }
 
 export default function JournalPage() {
-  const [user, setUser] = useState<any>(null)
-  const [entries, setEntries] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<"daily" | "weekly">("daily")
   const router = useRouter()
 
-  useEffect(() => {
-    const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) { router.replace("/auth/login"); return }
-      setUser(data.user)
-    })
-  }, [router])
+  const { data: user, isLoading: userLoading } = useUser()
+  const { data: entries = [], isPending } = useJournalEntries(user?.id, tab)
 
   useEffect(() => {
-    if (!user) return
-    const supabase = createClient()
-    supabase
-      .from("journals")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("type", tab)
-      .order("date", { ascending: false })
-      .limit(30)
-      .then(({ data }) => {
-        setEntries(data ?? [])
-        setLoading(false)
-      })
-  }, [user, tab])
+    if (!userLoading && !user) router.replace("/auth/login")
+  }, [userLoading, user, router])
 
+  const loading = userLoading || (!!user && isPending)
   const today = new Date().toISOString().slice(0, 10)
   const hasEntryToday = entries.some(e => e.date === today)
 
