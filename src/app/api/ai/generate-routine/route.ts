@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
-import { callDeepSeek, parseJsonResponse, withGuardrail, deepSeekErrorResponse } from "@/lib/deepseek"
+import { z } from "zod"
+import { callDeepSeekStructured, withGuardrail, deepSeekErrorResponse } from "@/lib/deepseek"
 
 const SYSTEM_PROMPT = withGuardrail(`You are an expert strength and conditioning coach with 20 years of experience.
 Create a complete weekly workout routine based on the user's parameters.
@@ -12,11 +13,25 @@ Rules:
 - Only ever produce gym/fitness training programs; if the parameters describe anything non-fitness, return {"name":"","overview":"","days":[]}
 - Never include text outside the JSON`)
 
-type GeneratedRoutine = {
-  name: string
-  overview: string
-  days: { day: string; focus: string; exercises: { name: string; sets: number; reps: string; rest_seconds: number; notes: string }[] }[]
-}
+const GeneratedRoutineSchema = z.object({
+  name: z.string(),
+  overview: z.string(),
+  days: z.array(
+    z.object({
+      day: z.string(),
+      focus: z.string(),
+      exercises: z.array(
+        z.object({
+          name: z.string(),
+          sets: z.number(),
+          reps: z.string(),
+          rest_seconds: z.number(),
+          notes: z.string(),
+        })
+      ),
+    })
+  ),
+})
 
 export async function POST(request: Request) {
   try {
@@ -41,19 +56,14 @@ export async function POST(request: Request) {
 
     const userPrompt = `Goal: ${goal.replace("_", " ")}. Training days per week: ${days_per_week}. Equipment: ${equipment.replace(/_/g, " ")}. Experience level: ${experience}. Create a complete, progressive weekly program.`
 
-    const raw = await callDeepSeek(
+    const parsed = await callDeepSeekStructured(
       [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userPrompt },
       ],
+      GeneratedRoutineSchema,
       { temperature: 0.5, max_tokens: 3000 }
     )
-
-    const parsed = parseJsonResponse<GeneratedRoutine>(raw)
-
-    if (!parsed?.days || !Array.isArray(parsed.days)) {
-      return NextResponse.json({ error: "Invalid AI response structure" }, { status: 502 })
-    }
 
     return NextResponse.json(parsed)
   } catch (err) {
