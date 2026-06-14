@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
-import { callDeepSeek, parseJsonResponse, withGuardrail, deepSeekErrorResponse } from "@/lib/deepseek"
+import { z } from "zod"
+import { callDeepSeekStructured, withGuardrail, deepSeekErrorResponse } from "@/lib/deepseek"
 
 const SYSTEM_PROMPT = withGuardrail(`You are a gym workout parser. Parse natural language workout descriptions into structured JSON.
 Return ONLY valid JSON with no explanation, matching this exact schema:
@@ -12,9 +13,14 @@ Rules:
 - If the input is not a description of a gym/strength workout, return {"exercises":[]}
 - Never include any text outside the JSON`)
 
-type ParsedWorkout = {
-  exercises: { name: string; sets: { reps: number; weight_kg: number }[] }[]
-}
+const ParsedWorkoutSchema = z.object({
+  exercises: z.array(
+    z.object({
+      name: z.string(),
+      sets: z.array(z.object({ reps: z.number(), weight_kg: z.number() })),
+    })
+  ),
+})
 
 export async function POST(request: Request) {
   try {
@@ -28,19 +34,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "text too long (max 2000 chars)" }, { status: 400 })
     }
 
-    const raw = await callDeepSeek(
+    const parsed = await callDeepSeekStructured(
       [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: text },
       ],
+      ParsedWorkoutSchema,
       { temperature: 0.2, max_tokens: 1024 }
     )
-
-    const parsed = parseJsonResponse<ParsedWorkout>(raw)
-
-    if (!parsed?.exercises || !Array.isArray(parsed.exercises)) {
-      return NextResponse.json({ error: "Invalid AI response structure" }, { status: 502 })
-    }
 
     return NextResponse.json(parsed)
   } catch (err) {

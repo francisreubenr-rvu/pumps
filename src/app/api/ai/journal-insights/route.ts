@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
-import { callDeepSeek, parseJsonResponse, withGuardrail, deepSeekErrorResponse } from "@/lib/deepseek"
+import { z } from "zod"
+import { callDeepSeekStructured, withGuardrail, deepSeekErrorResponse } from "@/lib/deepseek"
 import { createServiceSupabaseClient } from "@/lib/supabase/server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
@@ -15,10 +16,15 @@ Rules:
 - If the entries contain no usable training/fitness/nutrition/recovery information, return {"insights":[],"week_summary":"No training data to analyze this week."}
 - Never include text outside the JSON`)
 
-type InsightsResult = {
-  insights: { type: "energy" | "recovery" | "progress" | "suggestion"; text: string }[]
-  week_summary: string
-}
+const InsightsSchema = z.object({
+  insights: z.array(
+    z.object({
+      type: z.enum(["energy", "recovery", "progress", "suggestion"]),
+      text: z.string(),
+    })
+  ),
+  week_summary: z.string(),
+})
 
 export async function POST(request: Request) {
   try {
@@ -39,19 +45,14 @@ export async function POST(request: Request) {
 ${workoutSummary ? `\nWorkout stats: ${JSON.stringify(workoutSummary)}` : ""}
 \nProvide coaching insights for this athlete.`
 
-    const raw = await callDeepSeek(
+    const parsed = await callDeepSeekStructured(
       [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: userPrompt },
       ],
+      InsightsSchema,
       { temperature: 0.7, max_tokens: 1024 }
     )
-
-    const parsed = parseJsonResponse<InsightsResult>(raw)
-
-    if (!parsed?.insights || !Array.isArray(parsed.insights)) {
-      return NextResponse.json({ error: "Invalid AI response structure" }, { status: 502 })
-    }
 
     // Persist to journal_insights if journalId provided
     if (journalId) {
