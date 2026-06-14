@@ -19,6 +19,7 @@ const NAV_LINKS = [
   { href: "/modes", label: "Mode" },
   { href: "/playlists", label: "Playlists" },
   { href: "/progress", label: "Progress" },
+  { href: "/photos", label: "Photos" },
 ]
 
 export function AppNav() {

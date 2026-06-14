@@ -47,4 +47,8 @@ export const queryKeys = {
     /** A user's journal entries of a given type (daily/weekly). */
     list: (userId: string, type: string) => ["journal", userId, type] as const,
   },
+  photos: {
+    /** A user's progress photos. */
+    list: (userId: string) => ["photos", userId] as const,
+  },
 } as const
