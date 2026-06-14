@@ -4,8 +4,10 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ═════════════════════════════════════════════════════════════════════
-   PUMPS — KINETIC EDITION
-   #050505 · #111111 · #ccff00 · flat & fast
+   PUMPS — KINETIC EDITION · Refined Dark (Frontend Rebuild v2)
+   #08090B · #9A9CA3 · #CCFF00 · ~70% minimalist / 30% energetic
+   Premium dark, surgical energy: soft 8–16px radii, sentence-case
+   headings, lime used like a scalpel, 5 mode hues from one --accent.
    ═════════════════════════════════════════════════════════════════════ */
 
 @theme inline {
@@ -43,27 +45,42 @@
   --color-popover: var(--surface-elevated);
   --color-card-foreground: var(--fg);
   --color-card: var(--surface);
-  --radius-sm: 0;
-  --radius-md: 0;
-  --radius-lg: 0;
-  --radius-xl: 0;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 14px;
+  --radius-xl: 16px;
 }
 
 :root {
-  /* ── Core ── */
-  --bg:               #000005;
-  --bg-elevated:      #0a0a12;
-  --fg:               #f5f5f7;          /* Apple white */
-  --surface:          rgba(255,255,255,0.05);
-  --surface-elevated: rgba(255,255,255,0.09);
-  --border:           rgba(255,255,255,0.09);
-  --border-subtle:    rgba(255,255,255,0.05);
+  /* ── Core — refined premium dark (softer than pure black) ── */
+  --bg:               #08090B;          /* page */
+  --bg-elevated:      #0A0B0D;          /* app/card backdrop in frames */
+  --fg:               #F4F5F6;          /* ink */
+  --surface:          rgba(255,255,255,0.03);
+  --surface-elevated: rgba(255,255,255,0.06);
+  --border:           rgba(255,255,255,0.08);
+  --border-subtle:    rgba(255,255,255,0.06);
 
   /* ── Accent ── */
-  --accent:       oklch(0.85 0.22 130);  /* lime #ccff00 */
-  --accent-red:   oklch(0.54 0.23 25);
-  --accent-blue:  oklch(0.58 0.18 275);
-  --text-secondary: #86868b;             /* Apple secondary */
+  --accent:       #CCFF00;               /* lime — used surgically */
+  --accent-red:   #FF4A3D;
+  --accent-blue:  #5B8DEF;
+  --text-secondary: #9A9CA3;             /* ink-2 */
+  --text-tertiary:  #5C5E66;             /* dim micro-labels */
+
+  /* ── Semantic ── */
+  --success: #34D17A;
+  --danger:  #FF4A3D;
+  --warning: #FFC24B;
+  --info:    #5B8DEF;
+
+  /* ── Radius scale — the biggest premium signal (was zero-radius) ── */
+  --r-xs:   7px;    /* badges */
+  --r-sm:   8px;
+  --r-md:   11px;   /* buttons, inputs */
+  --r-lg:   14px;   /* nested cards, stat tiles */
+  --r-xl:   16px;   /* cards, frames */
+  --r-pill: 999px;
 
   /* ── Typography ── */
   --font-heading-stack: 'Saira', system-ui, sans-serif;
@@ -76,6 +93,21 @@
   --duration-fast:  100ms;
   --duration-normal:200ms;
   --duration-slow:  500ms;
+
+  /* ── Spacing scale (4px base) — use instead of magic numbers ── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* ── Card padding — fluid, breathes down on small screens (replaces the
+        JS useIsThinPhone density hack with a pure-CSS clamp) ── */
+  --card-pad: clamp(18px, 4.5vw, 24px);
+  --section-gap: clamp(24px, 5vw, 32px);
 }
 
 /* ═════════════════════════════════════════════════════════════════════
@@ -84,27 +116,27 @@
    ═════════════════════════════════════════════════════════════════════ */
 
 body.mode-monk {
-  --accent:      oklch(0.55 0.12 275);   /* muted disciplined blue */
-  --accent-alt:  oklch(0.45 0.08 275);
-  --bg:          #05060f;                /* deep indigo void */
+  --accent:      #7C8BFF;                /* disciplined indigo */
+  --accent-alt:  #5d6bd6;
+  --bg:          #0A0C18;                /* deep indigo void */
 }
 
 body.mode-revenge {
-  --accent:      oklch(0.60 0.25 25);    /* rage red */
-  --accent-alt:  oklch(0.50 0.20 25);
-  --bg:          #0c0405;                /* blood-dark */
+  --accent:      #FF4A3D;                /* rage red */
+  --accent-alt:  #d6342a;
+  --bg:          #150708;                /* blood-dark */
 }
 
 body.mode-winter {
-  --accent:      oklch(0.80 0.05 240);   /* ice blue-white */
-  --accent-alt:  oklch(0.70 0.08 240);
-  --bg:          #060b16;                /* cold night */
+  --accent:      #AECBE8;                /* ice blue-white */
+  --accent-alt:  #8fb0d2;
+  --bg:          #0A1018;                /* cold night */
 }
 
 body.mode-happy {
-  --accent:      oklch(0.85 0.20 80);    /* warm gold */
-  --accent-alt:  oklch(0.75 0.18 80);
-  --bg:          #0c0710;                /* warm-tinted dark */
+  --accent:      #FFC24B;                /* warm gold */
+  --accent-alt:  #e6a82f;
+  --bg:          #140E08;                /* warm-tinted dark */
 }
 
 /* ── Per-mode ambient mesh recolor — tints the glass-card depth layer ── */
@@ -208,29 +240,32 @@ body > * { position: relative; z-index: 1; }
    TYPOGRAPHY — KINETIC style
    ═════════════════════════════════════════════════════════════════════ */
 
+/* Sentence-case headings — premium, not shouty. Uppercase is reserved for
+   micro-labels (.k-eyebrow, .label-sm, .badge, table headers) only. */
 h1, h2, h3, h4, .heading {
   font-family: var(--font-heading-stack);
-  letter-spacing: -0.04em;
-  text-transform: uppercase;
-  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-weight: 600;
 }
 
 .display { font-family: var(--font-display); }
 
 /* ═════════════════════════════════════════════════════════════════════
-   CARD SYSTEM — KINETIC flat, zero-radius
+   CARD SYSTEM — refined glass, soft 16px radius
    ═════════════════════════════════════════════════════════════════════ */
 
 .card-surface {
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.09);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: var(--r-xl);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
 }
 
 .card-elevated {
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.13);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: var(--r-xl);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
 }
@@ -267,13 +302,14 @@ h1, h2, h3, h4, .heading {
   text-transform: uppercase; letter-spacing: 0.05em;
   background: var(--accent); color: #000;
   border: none;
+  border-radius: var(--r-md);
   cursor: pointer;
   touch-action: manipulation;
-  transition: opacity var(--duration-fast) var(--ease-expo), box-shadow var(--duration-fast) var(--ease-expo);
+  transition: opacity var(--duration-fast) var(--ease-expo), box-shadow var(--duration-fast) var(--ease-expo), transform var(--duration-fast) var(--ease-expo);
   box-shadow: 0 0 0 0 rgba(204,255,0,0);
 }
-.btn-primary:hover   { opacity: 0.88; box-shadow: 0 0 24px rgba(204,255,0,0.3); }
-.btn-primary:active  { opacity: 0.72; }
+.btn-primary:hover   { box-shadow: 0 0 26px rgba(204,255,0,0.35); transform: translateY(-1px); }
+.btn-primary:active  { transform: scale(0.98); }
 .btn-primary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .btn-primary:disabled { opacity: 0.3; cursor: not-allowed; }
 
@@ -284,6 +320,7 @@ h1, h2, h3, h4, .heading {
   text-transform: uppercase; letter-spacing: 0.05em;
   background: rgba(255,255,255,0.06); color: var(--fg);
   border: 1px solid rgba(255,255,255,0.14);
+  border-radius: var(--r-md);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   cursor: pointer;
@@ -297,15 +334,16 @@ h1, h2, h3, h4, .heading {
   width: 100%;
   padding: 11px 16px;
   font-family: var(--font-body); font-size: 0.875rem;
-  background: rgba(255,255,255,0.06); color: var(--fg);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.05); color: var(--fg);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--r-md);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   outline: none;
-  transition: border-color var(--duration-fast) var(--ease-expo), background var(--duration-fast);
+  transition: border-color var(--duration-fast) var(--ease-expo), box-shadow var(--duration-fast) var(--ease-expo), background var(--duration-fast);
 }
 .input-field::placeholder { color: var(--text-secondary); }
-.input-field:focus { border-color: var(--accent); background: rgba(255,255,255,0.09); }
+.input-field:focus { border-color: var(--accent); background: rgba(255,255,255,0.07); box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 16%, transparent); }
 
 .label-sm {
   display: block;
@@ -317,9 +355,10 @@ h1, h2, h3, h4, .heading {
 
 .badge {
   display: inline-flex; align-items: center;
-  padding: 2px 10px;
-  font-family: var(--font-heading-stack); font-size: 0.625rem; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.08em;
+  padding: 4px 10px;
+  font-family: var(--font-heading-stack); font-size: 0.625rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  border-radius: var(--r-xs);
   background: var(--accent); color: var(--bg);
 }
 
@@ -502,4 +541,234 @@ h1, h2, h3, h4, .heading {
     flex-shrink: 0;
     scroll-snap-align: start;
   }
+}
+
+/* ═════════════════════════════════════════════════════════════════════
+   KINETIC UI SYSTEM
+   Shared type scale + layout primitives. Consumed by the React components
+   in components/ui/kinetic.tsx so pages stop re-declaring inline styles.
+   Every value is mode-themeable via the --accent / --fg cascade.
+   ═════════════════════════════════════════════════════════════════════ */
+
+/* ── Type scale — micro-labels uppercase, titles/headings sentence-case ── */
+.k-eyebrow {
+  font-family: var(--font-heading-stack);
+  font-size: 0.6875rem;        /* 11px */
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  line-height: 1;
+}
+
+.k-title {
+  font-family: var(--font-heading-stack);
+  font-size: 0.9375rem;        /* 15px */
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+  line-height: 1.2;
+}
+
+.k-stat {
+  font-family: var(--font-display);   /* Teko — big numerals */
+  font-size: clamp(30px, 8vw, 40px);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 0.9;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.k-stat-unit {
+  font-family: var(--font-heading-stack);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.k-row-title {
+  font-family: var(--font-heading-stack);
+  font-size: 0.8125rem;        /* 13px */
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+}
+
+.k-row-sub {
+  font-family: var(--font-heading-stack);
+  font-size: 0.6875rem;        /* 11px */
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: var(--text-secondary);
+}
+
+/* ── Inline action link (e.g. "View all →") — meets touch-target height ── */
+.k-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 32px;
+  font-family: var(--font-heading-stack);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  text-decoration: none;
+  transition: opacity var(--duration-fast) var(--ease-expo);
+}
+.k-link:hover { opacity: 0.75; }
+
+/* ── Card padding helper + interactive hover state ── */
+.card-pad { padding: var(--card-pad); }
+
+.card-interactive {
+  text-decoration: none;
+  transition: border-color var(--duration-fast) var(--ease-expo),
+              background var(--duration-fast) var(--ease-expo);
+}
+.card-interactive:hover { border-color: rgba(204, 255, 0, 0.35); }
+.card-interactive:hover { border-color: color-mix(in oklch, var(--accent) 35%, transparent); }
+.card-interactive:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ── Section header row (title + optional action) ── */
+.k-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+/* ── List row (label/sub on the left, trailing element on the right) ── */
+.k-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+  text-decoration: none;
+}
+.k-list-row:last-child { border-bottom: none; }
+
+/* ── Auto-fit metric/action grids (pure-CSS density, no JS measuring) ── */
+.k-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 2px;
+}
+.k-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 2px;
+}
+@media (max-width: 480px) {
+  .k-stats-grid { grid-template-columns: 1fr; gap: 10px; }
+  .k-quick-grid { grid-template-columns: 1fr; gap: 8px; }
+}
+
+/* ── Section vertical rhythm utility ── */
+.k-section { margin-bottom: var(--section-gap); }
+
+/* ── Sticky top bar (focused sub-flows: detail / create pages) ── */
+.k-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: color-mix(in oklch, var(--bg) 92%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+  padding-top: env(safe-area-inset-top);
+}
+.k-topbar-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 0 clamp(16px, 4vw, 24px);
+}
+.k-logo {
+  font-family: var(--font-heading-stack);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  color: var(--fg);
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.k-crumb {
+  font-family: var(--font-heading-stack);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.k-crumb-sep {
+  font-family: var(--font-heading-stack);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.k-icon-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color var(--duration-fast) var(--ease-expo);
+}
+.k-icon-link:hover { color: var(--fg); }
+
+/* ── Data table (set logs, etc.) ── */
+.k-table { width: 100%; border-collapse: collapse; }
+.k-table th {
+  text-align: left;
+  padding: 8px 0;
+  font-family: var(--font-heading-stack);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.k-table td {
+  padding: 8px 0;
+  font-family: var(--font-heading-stack);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--fg);
+  border-top: 1px solid var(--border);
+}
+.k-table .num { font-variant-numeric: tabular-nums; }
+
+/* ── New-workout layout: editor + sticky exercise picker, stacks on mobile ── */
+@media (max-width: 768px) {
+  .new-workout-grid { grid-template-columns: 1fr !important; }
+  .new-workout-grid > :last-child { position: static !important; }
+}
+
+/* ── Centered loading / not-found fill ── */
+.k-fill {
+  background: var(--bg);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-family: var(--font-heading-stack);
 }
