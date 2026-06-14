@@ -1,20 +1,17 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts"
 import { Dumbbell, TrendingUp, Flame, PieChart } from "lucide-react"
 import { useUser } from "@/lib/queries/auth"
 import { useProgressData } from "@/lib/queries/progress"
 import { PageShell, PageTitle, Card, EmptyState } from "@/components/ui/kinetic"
 
-const tooltipStyle = {
-  background: "var(--surface)",
-  border: "1px solid var(--border)",
-  borderRadius: 0,
-  fontSize: 12,
-  fontFamily: "var(--font-heading-stack)",
-}
+// recharts loaded on demand so it stays out of the initial route JS.
+const chartLoading = () => <div style={{ height: 300 }} aria-hidden="true" />
+const LineSeriesChart = dynamic(() => import("@/components/charts/line-series-chart"), { ssr: false, loading: chartLoading })
+const BarSeriesChart = dynamic(() => import("@/components/charts/bar-series-chart"), { ssr: false, loading: chartLoading })
 
 // Format an ISO yyyy-mm-dd key into a short, sortable display label.
 function fmtDay(iso: string) {
@@ -107,16 +104,7 @@ export default function ProgressPage() {
             </select>
           </div>
           {filtered.length >= 2 ? (
-            <div style={{ height: 300 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={filtered} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
-                  <XAxis dataKey="date" stroke="var(--text-secondary)" fontSize={10} />
-                  <YAxis stroke="var(--text-secondary)" fontSize={10} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Line type="monotone" dataKey="weight_kg" stroke="var(--accent)" strokeWidth={2} dot={{ fill: "var(--accent)", r: 3 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+            <LineSeriesChart data={filtered} xKey="date" yKey="weight_kg" />
           ) : filtered.length === 1 ? (
             <div style={{ textAlign: "center", padding: "40px 0" }}>
               <p className="k-stat" style={{ color: "var(--accent)" }}>{filtered[0].weight_kg} kg</p>
@@ -142,16 +130,7 @@ export default function ProgressPage() {
           </div>
           <p className="k-row-sub" style={{ marginBottom: 24 }}>Epley estimate — credits heavier reps, not just top weight.</p>
           {filteredE1rm.length >= 2 ? (
-            <div style={{ height: 300 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={filteredE1rm} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
-                  <XAxis dataKey="date" stroke="var(--text-secondary)" fontSize={10} />
-                  <YAxis stroke="var(--text-secondary)" fontSize={10} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Line type="monotone" dataKey="e1rm" stroke="var(--accent)" strokeWidth={2} dot={{ fill: "var(--accent)", r: 3 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+            <LineSeriesChart data={filteredE1rm} xKey="date" yKey="e1rm" />
           ) : filteredE1rm.length === 1 ? (
             <div style={{ textAlign: "center", padding: "40px 0" }}>
               <p className="k-stat" style={{ color: "var(--accent)" }}>{filteredE1rm[0].e1rm} kg</p>
@@ -167,16 +146,7 @@ export default function ProgressPage() {
         <Card>
           <h3 className="k-title" style={{ marginBottom: 24 }}>Weekly volume</h3>
           {volume.length >= 2 ? (
-            <div style={{ height: 300 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={volume} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
-                  <XAxis dataKey="period" stroke="var(--text-secondary)" fontSize={10} />
-                  <YAxis stroke="var(--text-secondary)" fontSize={10} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Bar dataKey="volume" fill="var(--accent)" radius={[0, 0, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            <BarSeriesChart data={volume} xKey="period" yKey="volume" />
           ) : volume.length === 1 ? (
             <div style={{ textAlign: "center", padding: "40px 0" }}>
               <p className="k-stat" style={{ color: "var(--accent)" }}>{volume[0].volume.toLocaleString()} kg</p>
