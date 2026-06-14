@@ -91,6 +91,41 @@ export function distinctExercises(sets: ExerciseSetInput[]): string[] {
   return [...new Set(sets.map((s) => s.exercise))]
 }
 
+/**
+ * Best estimated 1RM (Epley) per (day, exercise), oldest→newest — the strength
+ * progression curve. Unlike raw max weight, this credits heavier reps, so a
+ * 5×100 and a 1×112 read as comparable strength.
+ */
+export function dailyBest1RM(
+  sets: ExerciseSetInput[]
+): { day: string; e1rm: number; exercise: string }[] {
+  const best: Record<string, { day: string; e1rm: number; exercise: string }> = {}
+  for (const s of sets) {
+    const day = dayKey(s.date)
+    const e = epley1RM(s.weight_kg ?? 0, s.reps)
+    const k = `${day}|${s.exercise}`
+    if (!best[k] || e > best[k].e1rm) best[k] = { day, e1rm: e, exercise: s.exercise }
+  }
+  return Object.values(best).sort((a, b) => (a.day < b.day ? -1 : 1))
+}
+
+/** A dated set tagged with its exercise's muscle group / category. */
+export type CategorizedSetInput = DatedSetInput & { category: string }
+
+/**
+ * Training distribution: number of sets per muscle group / category, busiest
+ * first. Surfaces imbalances ("you've done 40 push sets and 6 pull sets").
+ */
+export function muscleFrequency(
+  sets: CategorizedSetInput[]
+): { category: string; sets: number }[] {
+  const counts: Record<string, number> = {}
+  for (const s of sets) counts[s.category] = (counts[s.category] ?? 0) + 1
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([category, n]) => ({ category, sets: n }))
+}
+
 /** A logged meal, normalized away from the DB row shape. */
 export type MealInput = {
   calories: number | null
