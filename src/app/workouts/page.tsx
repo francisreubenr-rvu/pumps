@@ -1,37 +1,21 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { createClient } from "@/lib/supabase/client"
 import { Clock } from "lucide-react"
+import { useUser } from "@/lib/queries/auth"
+import { useWorkouts } from "@/lib/queries/workouts"
 import { PageShell, PageTitle, Card, Badge } from "@/components/ui/kinetic"
 
 export default function WorkoutsPage() {
-  const [workouts, setWorkouts] = useState<any[]>([])
   const router = useRouter()
+  const { data: user, isLoading: userLoading } = useUser()
+  const { data: workouts = [] } = useWorkouts(user?.id)
 
-  const load = useCallback(async () => {
-    const supabase = createClient()
-    const { data: authData } = await supabase.auth.getUser()
-    if (!authData.user) { router.replace("/auth/login"); return }
-    const { data, error } = await supabase
-      .from("workouts")
-      .select("*")
-      .eq("user_id", authData.user.id)
-      .order("started_at", { ascending: false })
-    if (error) { console.error("Workouts query failed:", error); return }
-    setWorkouts(data ?? [])
-  }, [router])
-
-  // Refetch on mount and whenever the window regains focus, so a workout saved
-  // on another page appears immediately after navigating back here.
   useEffect(() => {
-    load().catch((err) => console.error("Workouts load failed:", err))
-    const onFocus = () => { load().catch((err) => console.error("Workouts refetch failed:", err)) }
-    window.addEventListener("focus", onFocus)
-    return () => window.removeEventListener("focus", onFocus)
-  }, [load])
+    if (!userLoading && !user) router.replace("/auth/login")
+  }, [userLoading, user, router])
 
   return (
     <PageShell>
