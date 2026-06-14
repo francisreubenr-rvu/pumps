@@ -72,7 +72,7 @@ create index if not exists journals_live_idx  on journals(user_id, date)  where 
 -- actions. `metadata` carries a small JSON snapshot (e.g. before/after values
 -- or AI request id) for forensics without a full shadow table.
 create table if not exists audit_events (
-  id          uuid primary key default uuid_generate_v4(),
+  id          uuid primary key default gen_random_uuid(),
   actor_id    uuid references profiles(id) on delete set null,
   action      text not null,          -- e.g. 'workout.create', 'workout.delete', 'ai.commit'
   entity_type text not null,          -- 'workout' | 'exercise_set' | 'journal' | 'meal_log' | ...
