@@ -6,6 +6,8 @@ import {
   best1RM,
   weeklyVolume,
   dailyMaxWeight,
+  dailyBest1RM,
+  muscleFrequency,
   distinctExercises,
   currentStreak,
   mealTotals,
@@ -89,6 +91,37 @@ describe("dailyMaxWeight", () => {
     expect(bench?.weight_kg).toBe(110)
     expect(out).toHaveLength(2)
   })
+})
+
+describe("dailyBest1RM", () => {
+  test("keeps the best estimated 1RM per (day, exercise)", () => {
+    const sets = [
+      { reps: 5, weight_kg: 100, date: "2026-01-05", exercise: "Bench Press" }, // e1RM ~116.7
+      { reps: 1, weight_kg: 120, date: "2026-01-05", exercise: "Bench Press" }, // e1RM 120 (best)
+      { reps: 8, weight_kg: 90, date: "2026-01-12", exercise: "Bench Press" },
+    ]
+    const out = dailyBest1RM(sets)
+    expect(out).toHaveLength(2)
+    const first = out.find((r) => r.day === "2026-01-05")
+    expect(first?.e1rm).toBe(120)
+    // oldest → newest
+    expect(out[0].day < out[1].day).toBe(true)
+  })
+  test("empty → []", () => expect(dailyBest1RM([])).toEqual([]))
+})
+
+describe("muscleFrequency", () => {
+  test("counts sets per category, busiest first", () => {
+    const sets = [
+      { reps: 1, weight_kg: 1, date: "2026-01-01", category: "chest" },
+      { reps: 1, weight_kg: 1, date: "2026-01-01", category: "chest" },
+      { reps: 1, weight_kg: 1, date: "2026-01-01", category: "back" },
+    ]
+    const out = muscleFrequency(sets)
+    expect(out[0]).toEqual({ category: "chest", sets: 2 })
+    expect(out[1]).toEqual({ category: "back", sets: 1 })
+  })
+  test("empty → []", () => expect(muscleFrequency([])).toEqual([]))
 })
 
 describe("distinctExercises", () => {
