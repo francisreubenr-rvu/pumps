@@ -2,12 +2,13 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
-import { totalVolume, weeklyVolume, type DatedSetInput } from "@/lib/metrics"
+import { totalVolume, weeklyVolume, currentStreak, type DatedSetInput } from "@/lib/metrics"
 import { queryKeys } from "./keys"
 
 export type DashboardData = {
   workoutCount: number
   volume: number
+  streak: number
   recentWorkouts: any[]
   activeComps: any[]
   volumeHistory: { week: string; volume: number }[]
@@ -30,7 +31,7 @@ export function useDashboardData(userId: string | undefined) {
       // Volume counts every logged set. Sets default to completed=false (the
       // in-workout checkmark is rarely toggled), so filtering on completed would
       // zero out real logs — we count all sets to match what users save.
-      const [wc, vol, rw, ac, vh] = await Promise.all([
+      const [wc, vol, rw, ac, vh, wd] = await Promise.all([
         supabase.from("workouts").select("*", { count: "exact", head: true }).eq("user_id", userId!),
         supabase
           .from("exercise_sets")
@@ -43,6 +44,7 @@ export function useDashboardData(userId: string | undefined) {
           .select("reps, weight_kg, created_at, workout_exercises!inner(workouts!inner(started_at))")
           .eq("workout_exercises.workouts.user_id", userId!)
           .order("created_at", { ascending: true }),
+        supabase.from("workouts").select("started_at").eq("user_id", userId!),
       ])
 
       // Surface query errors loudly rather than silently rendering zeros.
@@ -52,6 +54,7 @@ export function useDashboardData(userId: string | undefined) {
         ["recent workouts", rw],
         ["active comps", ac],
         ["volume history", vh],
+        ["workout dates", wd],
       ] as const) {
         if (res?.error) {
           console.error(`Dashboard ${name} query failed:`, res.error)
@@ -70,6 +73,7 @@ export function useDashboardData(userId: string | undefined) {
       return {
         workoutCount: wc.count ?? 0,
         volume: totalVolume(volumeSets),
+        streak: currentStreak((wd.data ?? []).map((r: any) => r.started_at)),
         recentWorkouts: rw.data ?? [],
         activeComps: ac.data ?? [],
         volumeHistory: weeklyVolume(historySets, 8),

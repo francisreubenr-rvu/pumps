@@ -2,14 +2,12 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { TrendingUp, Swords, Plus, Activity, Zap, ChevronRight, Clock } from "lucide-react"
-import { useMode } from "@/lib/mode-context"
+import { TrendingUp, Swords, Plus, Flame, Zap, ChevronRight, Clock } from "lucide-react"
 import { useUser } from "@/lib/queries/auth"
 import { useDashboardData } from "@/lib/queries/dashboard"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts"
 import {
   PageShell,
-  PageHero,
   SectionHeader,
   Card,
   StatCard,
@@ -18,9 +16,15 @@ import {
   EmptyState,
 } from "@/components/ui/kinetic"
 
+function greeting(): string {
+  const h = new Date().getHours()
+  if (h < 12) return "Good morning"
+  if (h < 18) return "Good afternoon"
+  return "Good evening"
+}
+
 export default function DashboardPage() {
   const router = useRouter()
-  const { mode, meta } = useMode()
 
   const { data: user, isLoading: userLoading } = useUser()
   const { data, isPending } = useDashboardData(user?.id)
@@ -34,10 +38,18 @@ export default function DashboardPage() {
   const loading = userLoading || (!!user && isPending)
   const workoutCount = data?.workoutCount ?? 0
   const volume = data?.volume ?? 0
+  const streak = data?.streak ?? 0
   const recentWorkouts = data?.recentWorkouts ?? []
   const activeComps = data?.activeComps ?? []
   const volumeHistory = data?.volumeHistory ?? []
   const hasVolumeHistory = volumeHistory.length > 0
+
+  const name = user ? (user.user_metadata?.display_name || user.email?.split("@")[0] || "Athlete") : ""
+  const weekday = new Date().toLocaleDateString("en-US", { weekday: "long" })
+  const streakLine =
+    streak > 0
+      ? <>You&apos;re on a <span style={{ color: "var(--fg)", fontWeight: 600 }}>{streak}-day</span> streak. One session keeps it alive.</>
+      : <>Log a session today to start a streak.</>
 
   const quickActions = [
     { href: "/workouts/new", label: "Log Workout", icon: Plus },
@@ -48,22 +60,32 @@ export default function DashboardPage() {
 
   return (
     <PageShell>
-      <PageHero
-        title={user ? (user.user_metadata?.display_name || user.email?.split("@")[0] || "Athlete") : " "}
-        tagline={meta[mode].tagline}
-        bgImage="/images/hero-weights.jpg"
-      />
+      {/* Hero — gradient streak card (design blueprint; accent follows the active mode) */}
+      <div
+        className="k-section"
+        style={{
+          position: "relative",
+          overflow: "hidden",
+          borderRadius: "var(--r-xl)",
+          border: "1px solid var(--border)",
+          padding: "clamp(22px, 4vw, 28px)",
+          background:
+            "radial-gradient(120% 140% at 88% -20%, color-mix(in oklch, var(--accent) 14%, transparent), transparent 55%), linear-gradient(180deg, var(--surface-elevated), var(--bg-elevated))",
+        }}
+      >
+        <div className="k-eyebrow" style={{ color: "var(--accent)", marginBottom: 10 }}>Overview · {weekday}</div>
+        <div style={{ fontFamily: "var(--font-heading-stack)", fontSize: "clamp(24px, 4vw, 30px)", fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1.05, minHeight: 30 }}>
+          {name ? `${greeting()}, ${name}` : " "}
+        </div>
+        <p className="k-row-sub" style={{ marginTop: 8, fontSize: 14 }}>{streakLine}</p>
+      </div>
 
       {/* Stats */}
       <div className="k-stats-grid k-section">
         <StatCard icon={Zap} label="WORKOUTS" value={workoutCount} animate delay={100} />
         <StatCard icon={TrendingUp} label="TOTAL VOLUME" value={volume} unit="KG" animate delay={200} />
         <StatCard icon={Swords} label="LIVE COMPS" value={activeComps.length} animate delay={300} />
-        <StatCard
-          icon={Activity}
-          label="STATUS"
-          value={loading ? "…" : "Ready"}
-        />
+        <StatCard icon={Flame} label="STREAK" value={loading ? "…" : streak} unit={streak === 1 ? "DAY" : "DAYS"} animate={!loading} delay={400} />
       </div>
 
       {/* Volume chart */}
