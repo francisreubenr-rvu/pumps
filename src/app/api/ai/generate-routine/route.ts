@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { callDeepSeek, parseJsonResponse, withGuardrail } from "@/lib/deepseek"
+import { callDeepSeek, parseJsonResponse, withGuardrail, deepSeekErrorResponse } from "@/lib/deepseek"
 
 const SYSTEM_PROMPT = withGuardrail(`You are an expert strength and conditioning coach with 20 years of experience.
 Create a complete weekly workout routine based on the user's parameters.
@@ -58,6 +58,8 @@ export async function POST(request: Request) {
     return NextResponse.json(parsed)
   } catch (err) {
     console.error("[generate-routine]", err)
+    const mapped = deepSeekErrorResponse(err)
+    if (mapped) return NextResponse.json(mapped.body, { status: mapped.status })
     return NextResponse.json({ error: "Failed to generate routine" }, { status: 500 })
   }
 }

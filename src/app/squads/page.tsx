@@ -12,6 +12,7 @@ export default function SquadsPage() {
   const [mySquads, setMySquads] = useState<any[]>([])
   const [publicSquads, setPublicSquads] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState("")
   const [joinCode, setJoinCode] = useState("")
   const [joinError, setJoinError] = useState("")
   const [creating, setCreating] = useState(false)
@@ -30,14 +31,24 @@ export default function SquadsPage() {
   }, [router])
 
   async function loadSquads() {
+    setLoading(true)
+    setLoadError("")
     const supabase = createClient()
-    const [mine, pub] = await Promise.all([
-      supabase.from("squad_members").select("squads(*)").eq("user_id", user.id),
-      supabase.from("squads").select("*, squad_members(count)").eq("is_public", true).limit(12),
-    ])
-    setMySquads((mine.data ?? []).map((r: any) => r.squads).filter(Boolean))
-    setPublicSquads(pub.data ?? [])
-    setLoading(false)
+    try {
+      const [mine, pub] = await Promise.all([
+        supabase.from("squad_members").select("squads(*)").eq("user_id", user.id),
+        supabase.from("squads").select("*, squad_members(count)").eq("is_public", true).limit(12),
+      ])
+      if (mine.error) throw mine.error
+      setMySquads((mine.data ?? []).map((r: any) => r.squads).filter(Boolean))
+      setPublicSquads(pub.error ? [] : (pub.data ?? []))
+    } catch (err: any) {
+      setMySquads([])
+      setPublicSquads([])
+      setLoadError(err?.message || "Couldn't load your squads. Please try again.")
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -132,8 +143,22 @@ export default function SquadsPage() {
           </h2>
           {loading ? (
             <p style={{ color: "var(--text-secondary)", fontFamily: "var(--font-heading-stack)", fontSize: 12 }}>Loading…</p>
+          ) : loadError ? (
+            <div className="card-surface" style={{ padding: 20 }}>
+              <p style={{ color: "var(--accent-red)", fontFamily: "var(--font-heading-stack)", fontSize: 12, marginBottom: 8 }}>{loadError}</p>
+              <button onClick={loadSquads} className="btn-outline" style={{ fontSize: 11, padding: "8px 16px" }}>Retry</button>
+            </div>
           ) : mySquads.length === 0 ? (
-            <p style={{ color: "var(--text-secondary)", fontFamily: "var(--font-heading-stack)", fontSize: 12 }}>You&apos;re not in any squads yet.</p>
+            <div className="card-surface" style={{ padding: 28, textAlign: "center" }}>
+              <p className="k-row-sub">No squads yet — join one with an invite code above, or create your own.</p>
+              <button
+                onClick={() => setShowCreate(true)}
+                className="btn-primary"
+                style={{ gap: 8, marginTop: 16, justifyContent: "center", display: "inline-flex" }}
+              >
+                <Plus size={14} aria-hidden="true" /> Create a squad
+              </button>
+            </div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 2 }}>
               {mySquads.map((s: any) => (
@@ -160,6 +185,11 @@ export default function SquadsPage() {
             <Globe size={13} style={{ display: "inline", marginRight: 6 }} aria-hidden="true" />
             Public Squads
           </h2>
+          {!loading && !loadError && publicSquads.length === 0 ? (
+            <div className="card-surface" style={{ padding: 24, textAlign: "center" }}>
+              <p className="k-row-sub">No public squads yet.</p>
+            </div>
+          ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 2 }}>
             {publicSquads.map((s: any) => (
               <Link key={s.id} href={`/squads/${s.id}`} style={{ textDecoration: "none" }}>
@@ -174,6 +204,7 @@ export default function SquadsPage() {
               </Link>
             ))}
           </div>
+          )}
         </div>
       </main>
     </div>

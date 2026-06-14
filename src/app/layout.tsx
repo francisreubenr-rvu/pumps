@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { Saira, Teko } from "next/font/google"
 import { ModeProvider } from "@/lib/mode-context"
 import { ThemeEnvironment } from "@/components/theme/theme-environment"
@@ -19,7 +19,13 @@ const teko = Teko({
 })
 
 export const metadata: Metadata = {
-  title: "Pumps — Gym Journaling",
+  // `template` applies to child route segments (each route's layout.tsx sets a
+  // plain `title` that gets composed as "<route> · Pumps"). `default` is used for
+  // routes that don't set their own title.
+  title: {
+    template: "%s · Pumps",
+    default: "Pumps — Gym Journaling",
+  },
   description: "Track workouts. Compete with friends. Dominate the leaderboard.",
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
   openGraph: {
@@ -29,13 +35,20 @@ export const metadata: Metadata = {
   },
 }
 
+// Next 16: themeColor / colorScheme / viewport belong in the `viewport` export,
+// not hand-rolled <meta> tags. theme-color matches the real --bg (#08090B).
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  colorScheme: "dark",
+  themeColor: "#08090B",
+}
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${saira.variable} ${teko.variable} dark h-full antialiased`} >
       <head>
-        <meta name="color-scheme" content="dark" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-        <meta name="theme-color" content="#050505" />
         <link rel="preconnect" href="https://jchfbpzucylthmgthktj.supabase.co" />
       </head>
       <body className="min-h-full">

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { callDeepSeek, parseJsonResponse, withGuardrail } from "@/lib/deepseek"
+import { callDeepSeek, parseJsonResponse, withGuardrail, deepSeekErrorResponse } from "@/lib/deepseek"
 
 const SYSTEM_PROMPT = withGuardrail(`You are a gym workout parser. Parse natural language workout descriptions into structured JSON.
 Return ONLY valid JSON with no explanation, matching this exact schema:
@@ -45,6 +45,8 @@ export async function POST(request: Request) {
     return NextResponse.json(parsed)
   } catch (err) {
     console.error("[workout-parse]", err)
+    const mapped = deepSeekErrorResponse(err)
+    if (mapped) return NextResponse.json(mapped.body, { status: mapped.status })
     return NextResponse.json({ error: "Failed to parse workout" }, { status: 500 })
   }
 }

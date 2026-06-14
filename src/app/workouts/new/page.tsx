@@ -33,26 +33,38 @@ export default function NewWorkoutPage() {
   function removeSet(eid: string, i: number) { const cur = [...(sets[eid]||[])]; cur.splice(i, 1); setSets({ ...sets, [eid]: cur }) }
 
   async function save() {
-    if (!user) return; setSaving(true)
+    if (!user) return
+
+    // Drop exercises that have no sets — they'd persist as hollow workout_exercises.
+    const toSave = selected.filter(eid => (sets[eid]?.length ?? 0) > 0)
+    if (toSave.length === 0) return
+
+    setSaving(true)
     try {
       const supabase = createClient()
-      const { data: w } = await supabase.from("workouts").insert({ user_id: user.id, name: workoutName || "Workout", started_at: new Date(startTime).toISOString(), completed_at: new Date().toISOString() }).select().single()
-      if (!w) return
-      for (const [idx, eid] of selected.entries()) {
-        const { data: we } = await supabase.from("workout_exercises").insert({ workout_id: w.id, exercise_id: eid, sort_order: idx }).select().single()
-        if (!we) continue
+      const { data: w, error: wErr } = await supabase.from("workouts").insert({ user_id: user.id, name: workoutName || "Workout", started_at: new Date(startTime).toISOString(), completed_at: new Date().toISOString() }).select().single()
+      if (wErr || !w) { console.error("Workout insert failed:", wErr); return }
+      for (const [idx, eid] of toSave.entries()) {
+        const { data: we, error: weErr } = await supabase.from("workout_exercises").insert({ workout_id: w.id, exercise_id: eid, sort_order: idx }).select().single()
+        if (weErr || !we) { console.error("Workout exercise insert failed:", weErr); continue }
         const es = sets[eid] || []
-        await supabase.from("exercise_sets").insert(es.map((s, i) => ({ workout_exercise_id: we.id, set_number: i + 1, reps: s.reps, weight_kg: s.weight, completed: s.completed })))
+        // Finishing the workout ("COMPLETE WORKOUT") finalizes every set: mark
+        // them completed so they count toward leaderboards/profiles (RLS exposes
+        // only completed=true sets cross-user). The in-session checkmark is just
+        // a live indicator and is rarely toggled before saving.
+        const { error: sErr } = await supabase.from("exercise_sets").insert(es.map((s, i) => ({ workout_exercise_id: we.id, set_number: i + 1, reps: s.reps, weight_kg: s.weight, completed: true })))
+        if (sErr) console.error("Exercise sets insert failed:", sErr)
       }
       router.push(`/workouts/${w.id}`)
-    } catch {
-      // silently fail — user can retry
+    } catch (err) {
+      console.error("Save workout failed:", err)
     } finally {
       setSaving(false)
     }
   }
 
   const cats = [...new Set(exercises.map(e => e.category))]
+  const hasLoggedSets = selected.some(eid => (sets[eid]?.length ?? 0) > 0)
   const fmt = (s: number) => `${Math.floor(s/60)}:${String(s%60).padStart(2, "0")}`
 
   return (
@@ -103,7 +115,7 @@ export default function NewWorkoutPage() {
             )
           })}
           {selected.length > 0 && (
-            <button type="button" onClick={save} disabled={saving} className="btn-primary" style={{ width: "100%", justifyContent: "center", padding: "16px 0", marginTop: 8 }}>
+            <button type="button" onClick={save} disabled={saving || !hasLoggedSets} className="btn-primary" style={{ width: "100%", justifyContent: "center", padding: "16px 0", marginTop: 8, opacity: hasLoggedSets ? 1 : 0.5 }}>
               <Save size={16} /> {saving ? "SAVING..." : "COMPLETE WORKOUT"}
             </button>
           )}

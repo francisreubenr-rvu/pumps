@@ -8,7 +8,7 @@ import { AppNav } from "@/components/layout/nav"
 
 function LBTable({ data, vk, u, showEx }: { data: any[]; vk: string; u: string; showEx?: boolean }) {
   if (!data || data.length === 0) return (
-    <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, color: "var(--text-secondary)", padding: "20px 0", textAlign: "center" }}>No rankings yet</p>
+    <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, color: "var(--text-secondary)", padding: "20px 0", textAlign: "center" }}>No rankings yet — log a completed workout to claim a spot.</p>
   )
   return (
     <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -53,32 +53,55 @@ export default function LeaderboardPage() {
   const [weeklyData, setWeeklyData] = useState<any[]>([])
   const [exercises, setExercises] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState("")
   const [weeklyLoading, setWeeklyLoading] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.from("exercises").select("*").order("category").then(({ data }) => setExercises(data ?? [])).catch(() => {})
-    supabase.from("exercise_sets")
-      .select(`weight_kg, reps, workout_exercises!inner(exercise_id, exercises!inner(name), workouts!inner(user_id))`)
-      .eq("completed", true)
-      .then(({ data }) => {
-        supabase.from("profiles").select("id, username").then(({ data: profiles }) => {
-          const pm = Object.fromEntries((profiles ?? []).map((p: any) => [p.id, p]))
-          const ub: Record<string, any> = {}
-          const uv: Record<string, any> = {}
-          ;(data ?? []).forEach((s: any) => {
-            const uid = s.workout_exercises?.workouts?.user_id
-            const prof = pm[uid]
-            if (!prof) return
-            const w = Number(s.weight_kg ?? 0)
-            if (w > (ub[uid]?.weight ?? 0)) ub[uid] = { weight: w, username: prof.username, exercise: s.workout_exercises.exercises.name }
-            uv[uid] = { volume: (uv[uid]?.volume ?? 0) + s.reps * w, username: prof.username }
-          })
-          setMaxWeight(Object.values(ub).sort((a: any, b: any) => b.weight - a.weight).map((e: any, i: number) => ({ rank: i + 1, ...e })))
-          setTotalVolume(Object.values(uv).sort((a: any, b: any) => b.volume - a.volume).map((e: any, i: number) => ({ rank: i + 1, ...e })))
-          setLoading(false)
-        }).catch(() => setLoading(false))
-      }).catch(() => setLoading(false))
+    let cancelled = false
+
+    async function load() {
+      setLoading(true)
+      setLoadError("")
+      try {
+        const exRes = await supabase.from("exercises").select("*").order("category")
+        if (!cancelled) setExercises(exRes.data ?? [])
+
+        const setsRes = await supabase
+          .from("exercise_sets")
+          .select(`weight_kg, reps, workout_exercises!inner(exercise_id, exercises!inner(name), workouts!inner(user_id))`)
+          .eq("completed", true)
+        if (setsRes.error) throw setsRes.error
+
+        const profRes = await supabase.from("profiles").select("id, username")
+        const pm = Object.fromEntries((profRes.data ?? []).map((p: any) => [p.id, p]))
+
+        const ub: Record<string, any> = {}
+        const uv: Record<string, any> = {}
+        ;(setsRes.data ?? []).forEach((s: any) => {
+          const uid = s.workout_exercises?.workouts?.user_id
+          const prof = pm[uid]
+          if (!prof) return
+          const w = Number(s.weight_kg ?? 0)
+          if (w > (ub[uid]?.weight ?? 0)) ub[uid] = { weight: w, username: prof.username, exercise: s.workout_exercises.exercises.name }
+          uv[uid] = { volume: (uv[uid]?.volume ?? 0) + s.reps * w, username: prof.username }
+        })
+        if (cancelled) return
+        setMaxWeight(Object.values(ub).sort((a: any, b: any) => b.weight - a.weight).map((e: any, i: number) => ({ rank: i + 1, ...e })))
+        setTotalVolume(Object.values(uv).sort((a: any, b: any) => b.volume - a.volume).map((e: any, i: number) => ({ rank: i + 1, ...e })))
+      } catch (err: any) {
+        if (!cancelled) {
+          setMaxWeight([])
+          setTotalVolume([])
+          setLoadError(err?.message || "Couldn't load rankings. Please try again.")
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    load()
+    return () => { cancelled = true }
   }, [])
 
   useEffect(() => {
@@ -101,6 +124,9 @@ export default function LeaderboardPage() {
       .limit(50)
       .then(({ data }) => {
         setWeeklyData((data ?? []).map((r: any) => ({ ...r, username: r.profiles?.username ?? "unknown" })))
+        setWeeklyLoading(false)
+      }, () => {
+        setWeeklyData([])
         setWeeklyLoading(false)
       })
   }, [tab])
@@ -152,8 +178,22 @@ export default function LeaderboardPage() {
           </div>
         )}
 
-        {tab === "max-weight" && !loading && <div className="card-surface" style={{ padding: 24 }}><LBTable data={maxWeight} vk="weight" u="kg" showEx /></div>}
-        {tab === "volume" && !loading && <div className="card-surface" style={{ padding: 24 }}><LBTable data={totalVolume} vk="volume" u="kg" /></div>}
+        {(tab === "max-weight" || tab === "volume") && (
+          <div className="card-surface" style={{ padding: 24 }}>
+            {loading ? (
+              <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, color: "var(--text-secondary)", padding: "20px 0", textAlign: "center" }}>Loading…</p>
+            ) : loadError ? (
+              <div style={{ textAlign: "center", padding: "20px 0" }}>
+                <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, color: "var(--accent-red)", marginBottom: 12 }}>{loadError}</p>
+                <button onClick={() => location.reload()} className="btn-outline" style={{ fontSize: 11, padding: "8px 16px" }}>Retry</button>
+              </div>
+            ) : tab === "max-weight" ? (
+              <LBTable data={maxWeight} vk="weight" u="kg" showEx />
+            ) : (
+              <LBTable data={totalVolume} vk="volume" u="kg" />
+            )}
+          </div>
+        )}
 
         {cats.map(c => tab === `cat-${c}` && (
           <div key={c}>

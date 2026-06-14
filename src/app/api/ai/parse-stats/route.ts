@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { callDeepSeek, parseJsonResponse } from "@/lib/deepseek"
+import { callDeepSeek, parseJsonResponse, deepSeekErrorResponse } from "@/lib/deepseek"
 
 const SYSTEM_PROMPT = `You are a strict gym/fitness stat extraction engine. The user will give a free-text description of THEMSELVES (their body stats, training experience, goals, and known lifts). Your ONLY job is to extract that information into structured JSON. You do not chat, advise, or add commentary.
 
@@ -141,6 +141,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ stats: result })
   } catch (err) {
     console.error("[parse-stats]", err)
+    const mapped = deepSeekErrorResponse(err)
+    if (mapped) return NextResponse.json(mapped.body, { status: mapped.status })
     return NextResponse.json({ error: "Failed to parse stats" }, { status: 500 })
   }
 }

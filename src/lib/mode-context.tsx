@@ -34,11 +34,24 @@ const ModeContext = createContext<{
 })
 
 export function ModeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setModeState] = useState<Mode>(() => {
-    if (typeof localStorage === "undefined") return "default"
+  // Initialize to a deterministic default so the server render and the first
+  // client render are identical (localStorage is client-only — reading it during
+  // render diverges from the server HTML and triggers React hydration error #418).
+  // The stored mode is hydrated in the useEffect below, after mount.
+  const [mode, setModeState] = useState<Mode>("default")
+
+  // After mount, read the persisted mode from localStorage and apply it. Running
+  // this in an effect (not during render) keeps the first paint deterministic.
+  // The no-FOUC inline script in the root layout has already applied the correct
+  // <body> class synchronously, so there is no visible flash before this runs.
+  useEffect(() => {
+    if (typeof localStorage === "undefined") return
     const stored = localStorage.getItem(STORAGE_KEY) as Mode | null
-    return stored && stored in MODE_META ? stored : "default"
-  })
+    if (stored && stored in MODE_META && stored !== mode) {
+      setModeState(stored)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Apply body class whenever mode changes (including on mount)
   useEffect(() => {

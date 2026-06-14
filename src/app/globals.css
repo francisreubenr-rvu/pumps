@@ -760,6 +760,7 @@ h1, h2, h3, h4, .heading {
 @media (max-width: 768px) {
   .new-workout-grid { grid-template-columns: 1fr !important; }
   .new-workout-grid > :last-child { position: static !important; }
+  .comp-detail-grid { grid-template-columns: 1fr !important; }
 }
 
 /* ── Centered loading / not-found fill ── */

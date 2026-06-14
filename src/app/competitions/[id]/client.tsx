@@ -3,8 +3,8 @@
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import Link from "next/link"
-import { ArrowLeft, Swords, Play, Square, Timer, UserPlus } from "lucide-react"
+import { Swords, Play, Square, Timer, UserPlus } from "lucide-react"
+import { DetailShell, Fill, Card, Badge } from "@/components/ui/kinetic"
 
 export default function CompetitionDetailClient() {
   const { id } = useParams<{ id: string }>()
@@ -85,74 +85,70 @@ export default function CompetitionDetailClient() {
   function stats(uid: string) { const ul = logs.filter(l => l.user_id === uid); if (!comp) return ""; if (comp.type === "max_weight") return `${Math.max(...ul.map((l: any) => Number(l.weight_kg ?? 0)), 0)} kg`; if (comp.type === "max_reps") return `${Math.max(...ul.map((l: any) => l.reps), 0)} reps`; return `${ul.reduce((s: number, l: any) => s + l.reps * Number(l.weight_kg ?? 0), 0)} kg` }
   const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`
   const isCreator = comp?.created_by === userId
-  if (!comp) return <div style={{ backgroundColor: "#050505", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ color: "#8d8d8d" }}>…</span></div>
+  if (!comp) return <Fill><span style={{ color: "var(--text-secondary)" }}>…</span></Fill>
 
   return (
-    <div style={{ backgroundColor: "#050505", minHeight: "100vh" }}>
-      <header style={{ position: "sticky", top: 0, zIndex: 50, backgroundColor: "rgba(5,5,5,0.95)", backdropFilter: "blur(10px)", borderBottom: "1px solid #1a1a1a" }}>
-        <div style={{ maxWidth: 1280, margin: "0 auto", height: 56, display: "flex", alignItems: "center", gap: 16, padding: "0 24px" }}>
-          <Link href="/competitions" style={{ color: "#8d8d8d", display: "flex" }}><ArrowLeft size={18} /></Link>
-          <Link href="/dashboard" style={{ fontFamily: "var(--font-heading-stack)", fontSize: 16, fontWeight: 700, letterSpacing: "-0.04em", textTransform: "uppercase", color: "#ffffff", textDecoration: "none" }}>PUMPS</Link>
-          <span style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, fontWeight: 600, color: "#8d8d8d" }}>/</span>
-          <span style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "#ccff00" }}>{comp.name}</span>
-          <span className="badge" style={{ marginLeft: "auto", background: comp.status === "active" ? "#ccff00" : "#1a1a1a", color: comp.status === "active" ? "#050505" : "#8d8d8d", display: "flex", alignItems: "center", gap: 4 }}>
-            {comp.status === "active" ? <><span className="status-dot active" /> LIVE</> : comp.status}
-          </span>
-        </div>
-      </header>
-      <main style={{ maxWidth: 1024, margin: "0 auto", padding: "40px 24px" }}>
-        {comp.status === "active" && (
-          <div className="card-elevated" style={{ padding: 24, marginBottom: 24, display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
-            <Timer size={18} style={{ color: "#ccff00" }} />
-            <span style={{ fontFamily: "var(--font-heading-stack)", fontSize: 28, fontWeight: 700, letterSpacing: "-0.04em", color: "#ffffff" }}>{fmt(elapsed)}</span>
-          </div>
-        )}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 24 }}>
-          <div>
-            <div className="card-elevated" style={{ padding: 24 }}>
-              <h3 style={{ fontFamily: "var(--font-heading-stack)", fontSize: 14, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "#ffffff", marginBottom: 16 }}><Swords size={14} style={{ display: "inline", marginRight: 6, color: "#ccff00" }} />PARTICIPANTS</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
-                {participants.map(p => (
-                  <div key={p.user_id} style={{ padding: 16, background: "#111", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <div style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", background: "#ccff00", color: "#050505", fontFamily: "var(--font-heading-stack)", fontSize: 10, fontWeight: 700 }}>{p.username?.slice(0, 2).toUpperCase()}</div>
-                      <span style={{ fontFamily: "var(--font-heading-stack)", fontSize: 13, fontWeight: 600, color: "#ffffff" }}>{p.username}</span>
-                    </div>
-                    <span className="badge">{stats(p.user_id)}</span>
+    <DetailShell
+      backHref="/competitions"
+      crumb={comp.name}
+      maxWidth={1024}
+      trailing={
+        <Badge variant={comp.status === "active" ? "live" : "muted"}>
+          {comp.status === "active" ? "LIVE" : comp.status}
+        </Badge>
+      }
+    >
+      {comp.status === "active" && (
+        <Card elevated style={{ marginBottom: 24, display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
+          <Timer size={18} style={{ color: "var(--accent)" }} />
+          <span style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 700, letterSpacing: "-0.04em", color: "var(--fg)" }}>{fmt(elapsed)}</span>
+        </Card>
+      )}
+      <div className="comp-detail-grid" style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 24, alignItems: "start" }}>
+        <div>
+          <Card elevated>
+            <h3 className="k-title" style={{ marginBottom: 16 }}><Swords size={14} style={{ display: "inline", marginRight: 6, color: "var(--accent)" }} aria-hidden="true" />Participants</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+              {participants.map(p => (
+                <div key={p.user_id} style={{ padding: 16, background: "var(--surface)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                    <div style={{ width: 28, height: 28, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--accent)", color: "var(--bg)", fontFamily: "var(--font-heading-stack)", fontSize: 10, fontWeight: 700, borderRadius: "var(--r-xs)" }}>{p.username?.slice(0, 2).toUpperCase()}</div>
+                    <span style={{ fontFamily: "var(--font-heading-stack)", fontSize: 13, fontWeight: 600, color: "var(--fg)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.username}</span>
                   </div>
-                ))}
-              </div>
+                  <Badge variant="muted">{stats(p.user_id)}</Badge>
+                </div>
+              ))}
             </div>
-            {isParticipant && comp.status === "active" && (
-              <div style={{ display: "flex", alignItems: "flex-end", gap: 12, padding: 24, background: "#111", marginTop: 2, border: "1px solid #ccff00" }}>
-                <div style={{ flex: 1 }}><label className="label-sm">WEIGHT (KG)</label><input type="number" value={weight} onChange={e => setWeight(Number(e.target.value))} className="input-field" /></div>
-                <div style={{ flex: 1 }}><label className="label-sm">REPS</label><input type="number" value={reps} onChange={e => setReps(Number(e.target.value))} className="input-field" /></div>
-                <button onClick={logSet} className="btn-primary">LOG SET</button>
-              </div>
-            )}
-          </div>
-          <div>
-            {isCreator && comp.status === "waiting" && <button onClick={startComp} disabled={participants.length < 1} className="btn-primary" style={{ width: "100%", justifyContent: "center", marginBottom: 12, background: "#ccff00" }}><Play size={14} /> START</button>}
-            {isCreator && comp.status === "active" && <button onClick={endComp} className="btn-primary" style={{ width: "100%", justifyContent: "center", marginBottom: 12, background: "#ff0000" }}><Square size={14} /> END</button>}
-            {!isParticipant && comp.status !== "completed" && <button onClick={joinComp} className="btn-primary" style={{ width: "100%", justifyContent: "center", marginBottom: 12 }}><UserPlus size={14} /> JOIN</button>}
-            <div className="card-elevated" style={{ padding: 24 }}>
-              <h3 style={{ fontFamily: "var(--font-heading-stack)", fontSize: 14, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "#ffffff", marginBottom: 16 }}>LIVE LOG</h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 400, overflowY: "auto" }}>
-                {[...logs].reverse().map(l => {
-                  const pu = participants.find(pp => pp.user_id === l.user_id)
-                  return (
-                    <div key={l.id} style={{ padding: 10, background: "#111" }}>
-                      <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, fontWeight: 600, color: "#ffffff" }}>{pu?.username ?? "Unknown"}</p>
-                      <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, color: "#8d8d8d", marginTop: 2 }}>Set {l.set_number}: {l.weight_kg} kg × {l.reps} = {(Number(l.weight_kg ?? 0) * l.reps).toLocaleString()} kg</p>
-                    </div>
-                  )
-                })}
-                {logs.length === 0 && <p style={{ fontSize: 12, color: "#8d8d8d", textAlign: "center" }}>Waiting for first set...</p>}
-              </div>
+          </Card>
+          {isParticipant && comp.status === "active" && (
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 12, padding: 24, background: "var(--surface)", marginTop: 2, border: "1px solid var(--accent)", borderRadius: "var(--r-lg)" }}>
+              <div style={{ flex: 1 }}><label className="label-sm">WEIGHT (KG)</label><input type="number" inputMode="decimal" value={weight} onChange={e => setWeight(Number(e.target.value))} className="input-field" /></div>
+              <div style={{ flex: 1 }}><label className="label-sm">REPS</label><input type="number" inputMode="numeric" value={reps} onChange={e => setReps(Number(e.target.value))} className="input-field" /></div>
+              <button type="button" onClick={logSet} className="btn-primary">LOG SET</button>
             </div>
-          </div>
+          )}
         </div>
-      </main>
-    </div>
+        <div>
+          {isCreator && comp.status === "waiting" && <button type="button" onClick={startComp} disabled={participants.length < 1} className="btn-primary" style={{ width: "100%", justifyContent: "center", marginBottom: 12 }}><Play size={14} /> START</button>}
+          {isCreator && comp.status === "active" && <button type="button" onClick={endComp} className="btn-outline" style={{ width: "100%", justifyContent: "center", marginBottom: 12, color: "var(--danger)", borderColor: "var(--danger)" }}><Square size={14} /> END</button>}
+          {!isParticipant && comp.status !== "completed" && <button type="button" onClick={joinComp} className="btn-primary" style={{ width: "100%", justifyContent: "center", marginBottom: 12 }}><UserPlus size={14} /> JOIN</button>}
+          <Card elevated>
+            <h3 className="k-title" style={{ marginBottom: 16 }}>Live log</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 400, overflowY: "auto" }}>
+              {[...logs].reverse().map(l => {
+                const pu = participants.find(pp => pp.user_id === l.user_id)
+                return (
+                  <div key={l.id} style={{ padding: 10, background: "var(--surface)", borderRadius: "var(--r-sm)" }}>
+                    <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, fontWeight: 600, color: "var(--fg)" }}>{pu?.username ?? "Unknown"}</p>
+                    <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>Set {l.set_number}: {l.weight_kg} kg × {l.reps} = {(Number(l.weight_kg ?? 0) * l.reps).toLocaleString()} kg</p>
+                  </div>
+                )
+              })}
+              {logs.length === 0 && <p style={{ fontSize: 12, color: "var(--text-secondary)", textAlign: "center" }}>Waiting for first set...</p>}
+            </div>
+          </Card>
+        </div>
+      </div>
+    </DetailShell>
   )
 }

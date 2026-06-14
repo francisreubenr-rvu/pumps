@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
@@ -11,15 +11,27 @@ export default function WorkoutsPage() {
   const [workouts, setWorkouts] = useState<any[]>([])
   const router = useRouter()
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) { router.replace("/auth/login"); return }
-      supabase.from("workouts").select("*").eq("user_id", data.user.id).order("started_at", { ascending: false })
-        .then(({ data }) => { setWorkouts(data ?? []) })
-        .catch(() => { setWorkouts([]) })
-    })
+    const { data: authData } = await supabase.auth.getUser()
+    if (!authData.user) { router.replace("/auth/login"); return }
+    const { data, error } = await supabase
+      .from("workouts")
+      .select("*")
+      .eq("user_id", authData.user.id)
+      .order("started_at", { ascending: false })
+    if (error) { console.error("Workouts query failed:", error); return }
+    setWorkouts(data ?? [])
   }, [router])
+
+  // Refetch on mount and whenever the window regains focus, so a workout saved
+  // on another page appears immediately after navigating back here.
+  useEffect(() => {
+    load().catch((err) => console.error("Workouts load failed:", err))
+    const onFocus = () => { load().catch((err) => console.error("Workouts refetch failed:", err)) }
+    window.addEventListener("focus", onFocus)
+    return () => window.removeEventListener("focus", onFocus)
+  }, [load])
 
   return (
     <PageShell>

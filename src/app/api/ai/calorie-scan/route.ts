@@ -1,5 +1,20 @@
 import { NextResponse } from "next/server"
-import { callDeepSeek, parseJsonResponse, withGuardrail } from "@/lib/deepseek"
+import { callDeepSeek, parseJsonResponse, withGuardrail, deepSeekErrorResponse } from "@/lib/deepseek"
+
+// NOTE (vision model): DeepSeek's public chat-completions API
+// (api.deepseek.com) currently only serves text models (deepseek-chat /
+// deepseek-reasoner, mapped to the deepseek-v4 family). As of this writing it
+// does NOT expose a vision/multimodal model that accepts `image_url` content
+// blocks — the deepseek-vl / deepseek-vl2 models are open-weight research
+// releases, not available on the hosted API. Sending an image to
+// "deepseek-chat" will therefore not actually analyze the picture.
+//
+// To make "Scan Food" work, point this at a vision-capable model and (if it is
+// not on api.deepseek.com) the corresponding base URL/key. The model id is made
+// configurable here via DEEPSEEK_VISION_MODEL so it can be set without a code
+// change once a correct vision model is available. We intentionally do NOT
+// hardcode a guessed vision model name.
+const VISION_MODEL = process.env.DEEPSEEK_VISION_MODEL ?? "deepseek-chat"
 
 const SYSTEM_PROMPT = withGuardrail(`You are a nutrition expert and food identification AI. Analyze the food in this image.
 Return ONLY valid JSON with no explanation, matching this exact schema:
@@ -43,7 +58,7 @@ export async function POST(request: Request) {
           ],
         },
       ],
-      { temperature: 0.3, max_tokens: 1024, model: "deepseek-chat" }
+      { temperature: 0.3, max_tokens: 1024, model: VISION_MODEL }
     )
 
     const parsed = parseJsonResponse<CalorieScanResult>(raw)
@@ -55,6 +70,8 @@ export async function POST(request: Request) {
     return NextResponse.json(parsed)
   } catch (err) {
     console.error("[calorie-scan]", err)
+    const mapped = deepSeekErrorResponse(err)
+    if (mapped) return NextResponse.json(mapped.body, { status: mapped.status })
     return NextResponse.json({ error: "Failed to scan food" }, { status: 500 })
   }
 }
