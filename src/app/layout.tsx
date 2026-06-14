@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next"
 import { Saira, Teko } from "next/font/google"
 import { ModeProvider } from "@/lib/mode-context"
 import { QueryProvider } from "@/lib/query-provider"
+import { SyncManager } from "@/components/sync-manager"
 import { ThemeEnvironment } from "@/components/theme/theme-environment"
 import "./globals.css"
 
@@ -63,6 +64,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
         <QueryProvider>
           <ModeProvider><ThemeEnvironment />{children}</ModeProvider>
+          <SyncManager />
         </QueryProvider>
       </body>
     </html>

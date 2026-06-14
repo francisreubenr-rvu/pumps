@@ -103,8 +103,8 @@ export default function NewWorkoutPage() {
     setSaving(true)
     try {
       // The create mutation owns the inserts, audit event, and cache
-      // invalidation (see useCreateWorkout).
-      const id = await createWorkout.mutateAsync({
+      // invalidation — and queues the save if the device is offline.
+      const res = await createWorkout.mutateAsync({
         name: workoutName,
         startedAt: new Date(startTime).toISOString(),
         exercises: toSave.map(eid => ({
@@ -112,8 +112,10 @@ export default function NewWorkoutPage() {
           sets: (sets[eid] || []).map(s => ({ reps: s.reps, weight: s.weight })),
         })),
       })
-      clearDraft() // workout committed — the draft is no longer needed
-      router.push(`/workouts/${id}`)
+      clearDraft() // committed (or safely queued) — the draft is no longer needed
+      // Offline: no server id yet — go to the list (the queued workout appears
+      // once it syncs; the SyncManager badge shows it's pending).
+      router.push(res.queued ? "/workouts" : `/workouts/${res.id}`)
     } catch (err) {
       console.error("Save workout failed:", err)
     } finally {

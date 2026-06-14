@@ -3,8 +3,11 @@
 import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
 import { recordAuditEvent } from "@/lib/audit"
-import { log } from "@/lib/log"
+import { insertWorkout, type NewWorkoutInput } from "@/lib/workout-writes"
+import { enqueueWorkoutCreate } from "@/lib/offline-queue"
 import { queryKeys } from "./keys"
+
+export type { NewWorkoutInput }
 
 /** Everything a logged workout touches: dashboard stats, the list, progress. */
 function invalidateWorkoutCaches(qc: QueryClient, userId: string): void {
@@ -13,62 +16,44 @@ function invalidateWorkoutCaches(qc: QueryClient, userId: string): void {
   qc.invalidateQueries({ queryKey: queryKeys.progress.all(userId) })
 }
 
-export type NewWorkoutInput = {
-  name: string
-  /** ISO start timestamp. */
-  startedAt: string
-  exercises: { exerciseId: string; sets: { reps: number; weight: number }[] }[]
+function isOffline(): boolean {
+  return typeof navigator !== "undefined" && !navigator.onLine
 }
 
+export type CreateWorkoutResult = { id: string | null; queued: boolean }
+
 /**
- * Create a workout (+ its exercises and completed sets) in one mutation.
- * Centralizes the write that used to live inline in workouts/new: audit event,
- * cache invalidation, and structured error logging all happen here. Returns the
- * new workout id for navigation.
+ * Create a workout (+ exercises and completed sets), audit, and invalidate.
+ *
+ * Offline-aware: if the device is offline — or the request fails while offline
+ * — the workout is appended to the persistent sync queue and replayed when the
+ * connection returns (see offline-queue). `queued: true` tells the caller the
+ * save is safe but deferred (no server id yet, so navigate to the list).
  */
 export function useCreateWorkout(userId: string | undefined) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (input: NewWorkoutInput): Promise<string> => {
+    mutationFn: async (input: NewWorkoutInput): Promise<CreateWorkoutResult> => {
       if (!userId) throw new Error("not authenticated")
-      const supabase = createClient()
 
-      const { data: w, error: wErr } = await supabase
-        .from("workouts")
-        .insert({ user_id: userId, name: input.name || "Workout", started_at: input.startedAt, completed_at: new Date().toISOString() })
-        .select("id")
-        .single()
-      if (wErr || !w) throw wErr ?? new Error("workout insert failed")
-
-      for (const [idx, ex] of input.exercises.entries()) {
-        const { data: we, error: weErr } = await supabase
-          .from("workout_exercises")
-          .insert({ workout_id: w.id, exercise_id: ex.exerciseId, sort_order: idx })
-          .select("id")
-          .single()
-        if (weErr || !we) {
-          log.error("workout.exercise_insert_failed", { detail: weErr?.message })
-          continue
-        }
-        // Completed=true so sets count toward leaderboards/profiles (RLS exposes
-        // only completed sets cross-user).
-        const { error: sErr } = await supabase.from("exercise_sets").insert(
-          ex.sets.map((s, i) => ({ workout_exercise_id: we.id, set_number: i + 1, reps: s.reps, weight_kg: s.weight, completed: true }))
-        )
-        if (sErr) log.error("workout.sets_insert_failed", { detail: sErr.message })
+      if (isOffline()) {
+        enqueueWorkoutCreate(userId, input)
+        return { id: null, queued: true }
       }
-
-      recordAuditEvent(supabase, {
-        actorId: userId,
-        action: "workout.create",
-        entityType: "workout",
-        entityId: w.id,
-        metadata: { name: input.name, exercises: input.exercises.length },
-      })
-      return w.id
+      try {
+        const id = await insertWorkout(createClient(), userId, input)
+        return { id, queued: false }
+      } catch (err) {
+        // Lost connection mid-save — queue it rather than lose the workout.
+        if (isOffline()) {
+          enqueueWorkoutCreate(userId, input)
+          return { id: null, queued: true }
+        }
+        throw err
+      }
     },
-    onSuccess: () => {
-      if (userId) invalidateWorkoutCaches(qc, userId)
+    onSuccess: (res) => {
+      if (userId && !res.queued) invalidateWorkoutCaches(qc, userId)
     },
   })
 }
