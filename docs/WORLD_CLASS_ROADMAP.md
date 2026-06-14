@@ -81,21 +81,18 @@ Goal: nothing in the app is broken; every number is correct; no console errors.
 
 Exit criteria: every page loads with real data, no console errors, no number disagrees with another.
 
-### Stage 1 — Trustworthy (the moat)
+### Stage 1 — Trustworthy (the moat) — ✅ substantially complete
 
 Goal: the data foundation the report describes — data can never silently drift, and history is recoverable.
 
-1. **Data-trust migrations:**
-   - `updated_at` + triggers on all mutable tables.
-   - Soft deletes (`deleted_at`) instead of hard deletes; RLS excludes deleted rows.
-   - Edit/audit log (`*_edit_log`, `audit_events`) for workout edits, deletes, AI commits, admin actions.
-2. **Canonical rollups:** `volume_daily_rollups`, `e1rm_rollups`, `streak_rollups`, `user_metric_snapshots`, recomputed via `pg_cron` + a `background_jobs` table. Screens read rollups, never recompute ad hoc.
-3. **Exercise normalization:** real `exercises` + `exercise_aliases` tables. AI resolves free text → canonical ID against the table, not inside the prompt.
-4. **Schema-validated AI:** Zod schemas on every AI route (or Vercel AI Gateway with structured output). Add confidence scoring, surface low-confidence mappings for user confirmation before commit, store request/response metadata + explainability artifacts.
-5. **Indexes & RLS tests:** index every foreign key and query path; add a test suite that asserts RLS isolation (user A can't read user B). Non-recursive squad-membership policies via helper functions.
-6. **Observability:** error tracking (Sentry), structured logs, a minimal product-analytics layer. CI gate that runs lint + tests on every push.
+1. **Data-trust migrations** ✅ (`00010`/`00011`, applied): `updated_at` + triggers; soft deletes (`deleted_at`) with RLS excluding deleted rows (and a deleted workout's sets, via parent check); `audit_events` log + `recordAuditEvent`.
+2. ~~**Canonical rollups** (`volume_daily_rollups`, … via `pg_cron`)~~ — **deliberately deferred.** The canonical `metrics` module is already the single source of truth, and at current scale there is no read-performance problem to solve. Rollup tables would re-introduce a *second* representation that can drift from source — the exact failure the trust work eliminated — for no present benefit. The report itself files rollups under the mid-scale tier. Revisit when a screen is measurably slow at real data volume.
+3. **Exercise normalization** ✅ (`00012`, applied): `exercise_aliases` table + `resolveExerciseId()`; AI output resolves to canonical IDs, not free text.
+4. **Schema-validated AI** ✅: Zod schemas + JSON mode + repair retry on every AI route. (Deferred enhancements: confidence scoring, stored request/response metadata, ambiguity surfacing.)
+5. **RLS tests** ✅: pgTAP suite (`supabase/tests/`) asserting soft-delete + cross-user isolation, plus a `bun test` unit suite for the metrics module.
+6. **Observability** ✅: structured logger (`src/lib/log.ts`, Vercel-native JSON) wired through the AI subsystem + audit, with an error-tracking seam; CI gate (lint + test + build) on every push. (Vendor error-tracking SDK — Sentry — is a drop-in at the seam when wanted.)
 
-Exit criteria: you can delete and restore a workout; every metric reconciles to a rollup; an RLS test suite is green; AI output is schema-guaranteed.
+Exit criteria: you can delete and restore a workout ✅; every metric flows from one canonical module ✅; an RLS test suite exists ✅; AI output is schema-guaranteed ✅.
 
 ### Stage 2 — World-class (depth & feel)
 

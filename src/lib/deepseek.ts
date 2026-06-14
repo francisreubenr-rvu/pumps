@@ -1,4 +1,5 @@
 import type { ZodType } from "zod"
+import { log } from "@/lib/log"
 
 type Message = {
   role: "system" | "user" | "assistant"
@@ -74,9 +75,7 @@ export async function callDeepSeek(
   const apiKey = process.env.DEEPSEEK_API_KEY
   if (!apiKey || apiKey.trim() === "") {
     // Fail fast and loudly server-side; routes translate this to a 503.
-    console.error(
-      "[deepseek] DEEPSEEK_API_KEY is missing or empty — set it in the deployment environment."
-    )
+    log.error("deepseek.config_missing", { detail: "DEEPSEEK_API_KEY is missing or empty" })
     throw new DeepSeekConfigError()
   }
 
@@ -100,14 +99,14 @@ export async function callDeepSeek(
   if (!res.ok) {
     const body = await res.text().catch(() => "")
     // Log the real upstream status/body server-side for debugging.
-    console.error(`[deepseek] upstream error ${res.status}: ${body}`)
+    log.error("deepseek.upstream_error", { status: res.status, body: body.slice(0, 500) })
     throw new DeepSeekApiError(res.status, body)
   }
 
   const data = await res.json()
   const content = data?.choices?.[0]?.message?.content
   if (typeof content !== "string") {
-    console.error("[deepseek] unexpected response shape:", JSON.stringify(data)?.slice(0, 500))
+    log.error("deepseek.unexpected_shape", { sample: JSON.stringify(data)?.slice(0, 500) })
     throw new DeepSeekApiError(res.status, "Unexpected response shape from DeepSeek")
   }
   return content
@@ -191,7 +190,7 @@ export async function callDeepSeekStructured<T>(
   const second = parseAndValidate(repaired, schema)
   if (second.ok) return second.data
 
-  console.error("[deepseek] schema validation failed after repair:", second.error)
+  log.error("deepseek.schema_invalid_after_repair", { issues: second.error })
   throw new DeepSeekSchemaError(second.error, repaired)
 }
 
