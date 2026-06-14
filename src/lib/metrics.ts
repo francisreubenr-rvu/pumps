@@ -91,6 +91,32 @@ export function distinctExercises(sets: ExerciseSetInput[]): string[] {
   return [...new Set(sets.map((s) => s.exercise))]
 }
 
+/** A logged meal, normalized away from the DB row shape. */
+export type MealInput = {
+  calories: number | null
+  protein_g: number | null
+  carbs_g: number | null
+  fat_g: number | null
+}
+
+/** Daily macro + calorie totals across a list of meal logs. */
+export function mealTotals(logs: MealInput[]): {
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+} {
+  return logs.reduce(
+    (acc, l) => ({
+      calories: acc.calories + (l.calories ?? 0),
+      protein: acc.protein + (l.protein_g ?? 0),
+      carbs: acc.carbs + (l.carbs_g ?? 0),
+      fat: acc.fat + (l.fat_g ?? 0),
+    }),
+    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+  )
+}
+
 /**
  * Weekly volume rollup, oldest→newest, limited to the last `weeks` buckets.
  * Returns `{ week: "YYYY-MM-DD", volume }` rows — the dashboard volume chart.

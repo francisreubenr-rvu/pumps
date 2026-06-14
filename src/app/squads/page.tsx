@@ -2,17 +2,16 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
+import { useUser } from "@/lib/queries/auth"
+import { useSquads } from "@/lib/queries/squads"
+import { queryKeys } from "@/lib/queries/keys"
 import { AppNav } from "@/components/layout/nav"
 import { Users, Plus, LogIn, Globe } from "lucide-react"
 
 export default function SquadsPage() {
-  const [user, setUser] = useState<any>(null)
-  const [mySquads, setMySquads] = useState<any[]>([])
-  const [publicSquads, setPublicSquads] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState("")
   const [joinCode, setJoinCode] = useState("")
   const [joinError, setJoinError] = useState("")
   const [creating, setCreating] = useState(false)
@@ -21,44 +20,27 @@ export default function SquadsPage() {
   const [isPublic, setIsPublic] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
   const router = useRouter()
+  const queryClient = useQueryClient()
+
+  const { data: user, isLoading: userLoading } = useUser()
+  const { data, isPending, isError, error, refetch } = useSquads(user?.id)
 
   useEffect(() => {
-    const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) { router.replace("/auth/login"); return }
-      setUser(data.user)
-    })
-  }, [router])
+    if (!userLoading && !user) router.replace("/auth/login")
+  }, [userLoading, user, router])
 
-  async function loadSquads() {
-    setLoading(true)
-    setLoadError("")
-    const supabase = createClient()
-    try {
-      const [mine, pub] = await Promise.all([
-        supabase.from("squad_members").select("squads(*)").eq("user_id", user.id),
-        supabase.from("squads").select("*, squad_members(count)").eq("is_public", true).limit(12),
-      ])
-      if (mine.error) throw mine.error
-      setMySquads((mine.data ?? []).map((r: any) => r.squads).filter(Boolean))
-      setPublicSquads(pub.error ? [] : (pub.data ?? []))
-    } catch (err: any) {
-      setMySquads([])
-      setPublicSquads([])
-      setLoadError(err?.message || "Couldn't load your squads. Please try again.")
-    } finally {
-      setLoading(false)
-    }
+  const mySquads = data?.mySquads ?? []
+  const publicSquads = data?.publicSquads ?? []
+  const loading = userLoading || (!!user && isPending)
+  const loadError = isError ? ((error as any)?.message || "Couldn't load your squads. Please try again.") : ""
+
+  // Refresh the squad lists after a join/create so they're current on return.
+  function invalidateSquads() {
+    if (user) queryClient.invalidateQueries({ queryKey: queryKeys.squads.all(user.id) })
   }
 
-  useEffect(() => {
-    if (!user) return
-    loadSquads()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user])
-
   async function joinByCode() {
-    if (!joinCode.trim()) return
+    if (!joinCode.trim() || !user) return
     setJoinError("")
     const supabase = createClient()
     const { data: squad } = await supabase.from("squads").select("id, name").eq("invite_code", joinCode.trim()).single()
@@ -66,17 +48,19 @@ export default function SquadsPage() {
     const { error } = await supabase.from("squad_members").insert({ squad_id: squad.id, user_id: user.id })
     if (error?.code === "23505") { setJoinError("You're already in this squad."); return }
     if (error) { setJoinError("Could not join squad."); return }
+    invalidateSquads()
     router.push(`/squads/${squad.id}`)
   }
 
   async function createSquad(e: React.FormEvent) {
     e.preventDefault()
-    if (!newName.trim()) return
+    if (!newName.trim() || !user) return
     setCreating(true)
     const supabase = createClient()
     const { data, error } = await supabase.from("squads").insert({ name: newName.trim(), description: newDesc.trim() || null, created_by: user.id, is_public: isPublic }).select("id").single()
     setCreating(false)
     if (error || !data) { return }
+    invalidateSquads()
     router.push(`/squads/${data.id}`)
   }
 
@@ -146,7 +130,7 @@ export default function SquadsPage() {
           ) : loadError ? (
             <div className="card-surface" style={{ padding: 20 }}>
               <p style={{ color: "var(--accent-red)", fontFamily: "var(--font-heading-stack)", fontSize: 12, marginBottom: 8 }}>{loadError}</p>
-              <button onClick={loadSquads} className="btn-outline" style={{ fontSize: 11, padding: "8px 16px" }}>Retry</button>
+              <button onClick={() => refetch()} className="btn-outline" style={{ fontSize: 11, padding: "8px 16px" }}>Retry</button>
             </div>
           ) : mySquads.length === 0 ? (
             <div className="card-surface" style={{ padding: 28, textAlign: "center" }}>

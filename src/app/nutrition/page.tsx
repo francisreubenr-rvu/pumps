@@ -3,41 +3,28 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { createClient } from "@/lib/supabase/client"
+import { useUser } from "@/lib/queries/auth"
+import { useMealLogs } from "@/lib/queries/nutrition"
+import { mealTotals } from "@/lib/metrics"
 import { AppNav } from "@/components/layout/nav"
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts"
-import { Camera, Plus, Flame, Beef, Wheat, Droplets } from "lucide-react"
+import { Camera, Flame, Beef, Wheat, Droplets } from "lucide-react"
 
 const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"] as const
 
 export default function NutritionPage() {
-  const [user, setUser] = useState<any>(null)
-  const [logs, setLogs] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10))
   const router = useRouter()
 
-  useEffect(() => {
-    const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) { router.replace("/auth/login"); return }
-      setUser(data.user)
-    })
-  }, [router])
+  const { data: user, isLoading: userLoading } = useUser()
+  const { data: logs = [], isPending } = useMealLogs(user?.id, selectedDate)
 
   useEffect(() => {
-    if (!user) return
-    const supabase = createClient()
-    supabase.from("meal_logs").select("*").eq("user_id", user.id).eq("date", selectedDate).order("created_at", { ascending: true })
-      .then(({ data }) => { setLogs(data ?? []); setLoading(false) })
-  }, [user, selectedDate])
+    if (!userLoading && !user) router.replace("/auth/login")
+  }, [userLoading, user, router])
 
-  const totals = logs.reduce((acc, l) => ({
-    calories: acc.calories + (l.calories ?? 0),
-    protein: acc.protein + (l.protein_g ?? 0),
-    carbs: acc.carbs + (l.carbs_g ?? 0),
-    fat: acc.fat + (l.fat_g ?? 0),
-  }), { calories: 0, protein: 0, carbs: 0, fat: 0 })
+  const loading = userLoading || (!!user && isPending)
+  const totals = mealTotals(logs)
 
   const macroData = [
     { name: "Protein", value: totals.protein, color: "var(--accent)" },

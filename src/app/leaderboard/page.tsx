@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import Link from "next/link"
-import { createClient } from "@/lib/supabase/client"
 import { Crown, Medal } from "lucide-react"
 import { AppNav } from "@/components/layout/nav"
+import { useLeaderboard, useWeeklyLeaderboard, currentWeekStart } from "@/lib/queries/leaderboard"
 
 function LBTable({ data, vk, u, showEx }: { data: any[]; vk: string; u: string; showEx?: boolean }) {
   if (!data || data.length === 0) return (
@@ -48,88 +48,15 @@ function LBTable({ data, vk, u, showEx }: { data: any[]; vk: string; u: string; 
 
 export default function LeaderboardPage() {
   const [tab, setTab] = useState("max-weight")
-  const [maxWeight, setMaxWeight] = useState<any[]>([])
-  const [totalVolume, setTotalVolume] = useState<any[]>([])
-  const [weeklyData, setWeeklyData] = useState<any[]>([])
-  const [exercises, setExercises] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState("")
-  const [weeklyLoading, setWeeklyLoading] = useState(false)
 
-  useEffect(() => {
-    const supabase = createClient()
-    let cancelled = false
+  const { data: lb, isLoading: loading, isError, refetch } = useLeaderboard()
+  const weekStart = currentWeekStart()
+  const { data: weeklyData = [], isLoading: weeklyLoading } = useWeeklyLeaderboard(weekStart, tab === "this-week")
 
-    async function load() {
-      setLoading(true)
-      setLoadError("")
-      try {
-        const exRes = await supabase.from("exercises").select("*").order("category")
-        if (!cancelled) setExercises(exRes.data ?? [])
-
-        const setsRes = await supabase
-          .from("exercise_sets")
-          .select(`weight_kg, reps, workout_exercises!inner(exercise_id, exercises!inner(name), workouts!inner(user_id))`)
-          .eq("completed", true)
-        if (setsRes.error) throw setsRes.error
-
-        const profRes = await supabase.from("profiles").select("id, username")
-        const pm = Object.fromEntries((profRes.data ?? []).map((p: any) => [p.id, p]))
-
-        const ub: Record<string, any> = {}
-        const uv: Record<string, any> = {}
-        ;(setsRes.data ?? []).forEach((s: any) => {
-          const uid = s.workout_exercises?.workouts?.user_id
-          const prof = pm[uid]
-          if (!prof) return
-          const w = Number(s.weight_kg ?? 0)
-          if (w > (ub[uid]?.weight ?? 0)) ub[uid] = { weight: w, username: prof.username, exercise: s.workout_exercises.exercises.name }
-          uv[uid] = { volume: (uv[uid]?.volume ?? 0) + s.reps * w, username: prof.username }
-        })
-        if (cancelled) return
-        setMaxWeight(Object.values(ub).sort((a: any, b: any) => b.weight - a.weight).map((e: any, i: number) => ({ rank: i + 1, ...e })))
-        setTotalVolume(Object.values(uv).sort((a: any, b: any) => b.volume - a.volume).map((e: any, i: number) => ({ rank: i + 1, ...e })))
-      } catch (err: any) {
-        if (!cancelled) {
-          setMaxWeight([])
-          setTotalVolume([])
-          setLoadError(err?.message || "Couldn't load rankings. Please try again.")
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    load()
-    return () => { cancelled = true }
-  }, [])
-
-  useEffect(() => {
-    if (tab !== "this-week") return
-    setWeeklyLoading(true)
-    const supabase = createClient()
-    // Current week Monday
-    const now = new Date()
-    const day = now.getDay() === 0 ? 7 : now.getDay()
-    const monday = new Date(now)
-    monday.setDate(now.getDate() - day + 1)
-    monday.setHours(0, 0, 0, 0)
-    const weekStart = monday.toISOString().slice(0, 10)
-
-    supabase
-      .from("weekly_leaderboard_snapshots")
-      .select("*, profiles!user_id(username)")
-      .eq("week_start", weekStart)
-      .order("rank", { ascending: true })
-      .limit(50)
-      .then(({ data }) => {
-        setWeeklyData((data ?? []).map((r: any) => ({ ...r, username: r.profiles?.username ?? "unknown" })))
-        setWeeklyLoading(false)
-      }, () => {
-        setWeeklyData([])
-        setWeeklyLoading(false)
-      })
-  }, [tab])
+  const maxWeight = lb?.maxWeight ?? []
+  const totalVolume = lb?.totalVolume ?? []
+  const exercises = lb?.exercises ?? []
+  const loadError = isError ? "Couldn't load rankings. Please try again." : ""
 
   const cats = [...new Set(exercises.map(e => e.category))]
 
@@ -185,7 +112,7 @@ export default function LeaderboardPage() {
             ) : loadError ? (
               <div style={{ textAlign: "center", padding: "20px 0" }}>
                 <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, color: "var(--accent-red)", marginBottom: 12 }}>{loadError}</p>
-                <button onClick={() => location.reload()} className="btn-outline" style={{ fontSize: 11, padding: "8px 16px" }}>Retry</button>
+                <button onClick={() => refetch()} className="btn-outline" style={{ fontSize: 11, padding: "8px 16px" }}>Retry</button>
               </div>
             ) : tab === "max-weight" ? (
               <LBTable data={maxWeight} vk="weight" u="kg" showEx />

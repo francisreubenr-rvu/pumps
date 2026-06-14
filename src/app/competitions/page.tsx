@@ -1,22 +1,15 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import Link from "next/link"
-import { createClient } from "@/lib/supabase/client"
 import { Plus, Swords } from "lucide-react"
+import { useUser } from "@/lib/queries/auth"
+import { useCompetitions } from "@/lib/queries/competitions"
 import { PageShell, PageTitle, Card, Badge, EmptyState } from "@/components/ui/kinetic"
 
 export default function CompetitionsPage() {
-  const [comps, setComps] = useState<any[]>([])
-  const [userId, setUserId] = useState<string | null>(null)
-
-  useEffect(() => {
-    const supabase = createClient()
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) setUserId(user.id)
-    })
-    supabase.from("competitions").select("*, exercises(name), competition_participants(count)").order("created_at", { ascending: false }).then(({ data }) => setComps(data ?? []))
-  }, [])
+  const { data: user } = useUser()
+  const userId = user?.id ?? null
+  const { data: comps = [] } = useCompetitions()
 
   return (
     <PageShell>
