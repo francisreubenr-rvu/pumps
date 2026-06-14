@@ -1,3 +1,5 @@
+import type { ZodType } from "zod"
+
 type Message = {
   role: "system" | "user" | "assistant"
   content: string | ContentBlock[]
@@ -67,7 +69,7 @@ type ContentBlock =
 
 export async function callDeepSeek(
   messages: Message[],
-  opts?: { max_tokens?: number; temperature?: number; model?: string }
+  opts?: { max_tokens?: number; temperature?: number; model?: string; json?: boolean }
 ): Promise<string> {
   const apiKey = process.env.DEEPSEEK_API_KEY
   if (!apiKey || apiKey.trim() === "") {
@@ -89,6 +91,9 @@ export async function callDeepSeek(
       messages,
       max_tokens: opts?.max_tokens ?? 2048,
       temperature: opts?.temperature ?? 0.3,
+      // DeepSeek JSON mode: constrains output to a valid JSON object. Requires
+      // the word "json" in the prompt (all our system prompts say "JSON").
+      ...(opts?.json ? { response_format: { type: "json_object" } } : {}),
     }),
   })
 
@@ -121,6 +126,76 @@ export function parseJsonResponse<T>(raw: string): T {
 }
 
 /**
+ * Error thrown when the model's JSON parsed but failed schema validation even
+ * after a repair attempt. Routes map this to a 502.
+ */
+export class DeepSeekSchemaError extends Error {
+  issues: string
+  raw: string
+  constructor(issues: string, raw: string) {
+    super(`AI response failed schema validation: ${issues}`)
+    this.name = "DeepSeekSchemaError"
+    this.issues = issues
+    this.raw = raw
+  }
+}
+
+function parseAndValidate<T>(
+  raw: string,
+  schema: ZodType<T>
+): { ok: true; data: T } | { ok: false; error: string } {
+  let json: unknown
+  try {
+    json = parseJsonResponse<unknown>(raw)
+  } catch {
+    return { ok: false, error: "output was not valid JSON" }
+  }
+  const result = schema.safeParse(json)
+  if (result.success) return { ok: true, data: result.data }
+  const error = result.error.issues
+    .map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`)
+    .join("; ")
+  return { ok: false, error }
+}
+
+/**
+ * Call DeepSeek in JSON mode and return data validated against a Zod schema.
+ *
+ * This replaces the old "parseJsonResponse + hand-rolled shape check" pattern:
+ * the response is constrained to JSON, then validated structurally. On a
+ * validation failure we make ONE repair attempt — feeding the model its own
+ * bad output plus the specific Zod errors — before giving up with a
+ * DeepSeekSchemaError (which routes surface as a clean 502).
+ *
+ * The returned value is fully typed and guaranteed to match `schema`.
+ */
+export async function callDeepSeekStructured<T>(
+  messages: Message[],
+  schema: ZodType<T>,
+  opts?: { max_tokens?: number; temperature?: number; model?: string }
+): Promise<T> {
+  const raw = await callDeepSeek(messages, { ...opts, json: true })
+  const first = parseAndValidate(raw, schema)
+  if (first.ok) return first.data
+
+  // One self-repair pass: show the model its output and the exact problems.
+  const repairMessages: Message[] = [
+    ...messages,
+    { role: "assistant", content: raw },
+    {
+      role: "user",
+      content: `Your previous response was invalid: ${first.error}. Return ONLY corrected JSON that exactly matches the required schema — no prose, no markdown.`,
+    },
+  ]
+  const repaired = await callDeepSeek(repairMessages, { ...opts, json: true })
+  const second = parseAndValidate(repaired, schema)
+  if (second.ok) return second.data
+
+  console.error("[deepseek] schema validation failed after repair:", second.error)
+  throw new DeepSeekSchemaError(second.error, repaired)
+}
+
+/**
  * Maps a thrown error from callDeepSeek/parseJsonResponse to an appropriate
  * HTTP response shape. Keeps config (503), upstream (502), and parse (502)
  * failures distinguishable from genuine 500s. Returns null if the error is not
@@ -134,6 +209,9 @@ export function deepSeekErrorResponse(
   }
   if (err instanceof DeepSeekParseError) {
     return { status: 502, body: { error: "Could not parse AI response. Please try again." } }
+  }
+  if (err instanceof DeepSeekSchemaError) {
+    return { status: 502, body: { error: "The AI response didn't match the expected format. Please try again." } }
   }
   if (err instanceof DeepSeekApiError) {
     // Pass auth/config-ish upstream failures through as 503 so the operator

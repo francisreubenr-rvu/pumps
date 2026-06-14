@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
 import { queryKeys } from "@/lib/queries/keys"
+import { recordAuditEvent } from "@/lib/audit"
 import { Plus, Trash2, Save, Clock, Check } from "lucide-react"
 import { DetailShell, Card, PageTitle } from "@/components/ui/kinetic"
 
@@ -65,6 +66,15 @@ export default function NewWorkoutPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all(user.id) })
       queryClient.invalidateQueries({ queryKey: queryKeys.workouts.list(user.id) })
       queryClient.invalidateQueries({ queryKey: queryKeys.progress.all(user.id) })
+
+      // Audit trail (best-effort; inert until migration 00010 is applied).
+      recordAuditEvent(supabase, {
+        actorId: user.id,
+        action: "workout.create",
+        entityType: "workout",
+        entityId: w.id,
+        metadata: { name: w.name, exercises: toSave.length },
+      })
 
       router.push(`/workouts/${w.id}`)
     } catch (err) {
