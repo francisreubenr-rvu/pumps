@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { Camera } from "lucide-react"
 import { useUser } from "@/lib/queries/auth"
 import { useMealLogs } from "@/lib/queries/nutrition"
 import { mealTotals } from "@/lib/metrics"
-import { AppNav } from "@/components/layout/nav"
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts"
-import { Camera, Flame, Beef, Wheat, Droplets } from "lucide-react"
+import { MacroRing } from "@/components/nutrition/macro-ring"
+import { PageShell, PageTitle, Card, EmptyState } from "@/components/ui/kinetic"
 
 const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"] as const
 
@@ -26,136 +26,83 @@ export default function NutritionPage() {
   const loading = userLoading || (!!user && isPending)
   const totals = mealTotals(logs)
 
-  const macroData = [
-    { name: "Protein", value: totals.protein, color: "var(--accent)" },
-    { name: "Carbs", value: totals.carbs, color: "var(--accent-blue)" },
-    { name: "Fat", value: totals.fat, color: "var(--accent-red)" },
-  ].filter(d => d.value > 0)
-
-  const statCards = [
-    { label: "Calories", value: Math.round(totals.calories), unit: "kcal", icon: Flame, color: "var(--accent)" },
-    { label: "Protein", value: Math.round(totals.protein), unit: "g", icon: Beef, color: "var(--accent)" },
-    { label: "Carbs", value: Math.round(totals.carbs), unit: "g", icon: Wheat, color: "var(--accent-blue)" },
-    { label: "Fat", value: Math.round(totals.fat), unit: "g", icon: Droplets, color: "var(--accent-red)" },
+  // Macro bars are by share of macro calories (P·4, C·4, F·9) — honest split.
+  const macroCals = { protein: totals.protein * 4, carbs: totals.carbs * 4, fat: totals.fat * 9 }
+  const macroTotal = macroCals.protein + macroCals.carbs + macroCals.fat
+  const macros = [
+    { name: "Protein", grams: totals.protein, color: "var(--accent)", pct: macroTotal ? Math.round((macroCals.protein / macroTotal) * 100) : 0 },
+    { name: "Carbs", grams: totals.carbs, color: "var(--accent-blue)", pct: macroTotal ? Math.round((macroCals.carbs / macroTotal) * 100) : 0 },
+    { name: "Fat", grams: totals.fat, color: "var(--warning)", pct: macroTotal ? Math.round((macroCals.fat / macroTotal) * 100) : 0 },
   ]
 
   return (
-    <div style={{ backgroundColor: "var(--bg)", minHeight: "100vh" }}>
-      <AppNav />
-      <main style={{ maxWidth: 960, margin: "0 auto", padding: "40px 24px" }}>
-        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 40 }}>
-          <div>
-            <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(36px, 5vw, 56px)", fontWeight: 600, letterSpacing: "-0.02em", textTransform: "uppercase", color: "var(--fg)", lineHeight: 1 }}>
-              Nutrition
-            </h1>
-            <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--accent)", marginTop: 4 }}>
-              Calorie Tracker
-            </p>
-          </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={e => setSelectedDate(e.target.value)}
-              className="input-field"
-              style={{ padding: "8px 12px", fontSize: 12 }}
-            />
-            <Link href="/nutrition/scan" className="btn-primary" style={{ gap: 8 }}>
-              <Camera size={14} aria-hidden="true" /> Scan Food
-            </Link>
-          </div>
+    <PageShell>
+      <div className="k-section" style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+        <PageTitle title="Nutrition" eyebrow="Calorie tracker" />
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={e => setSelectedDate(e.target.value)}
+            className="input-field"
+            style={{ padding: "9px 12px", fontSize: 12, width: "auto" }}
+          />
+          <Link href="/nutrition/scan" className="btn-primary" style={{ gap: 8, fontSize: 12, padding: "9px 16px" }}>
+            <Camera size={14} aria-hidden="true" /> Scan food
+          </Link>
         </div>
+      </div>
 
-        {/* Stats grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 2, marginBottom: 32 }}>
-          {statCards.map(s => (
-            <div key={s.label} className="card-surface" style={{ padding: 20 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                <s.icon size={13} style={{ color: s.color }} aria-hidden="true" />
-                <span className="label-sm">{s.label}</span>
+      {/* Calories + macros */}
+      <Card className="k-section" style={{ display: "flex", gap: 28, alignItems: "center", flexWrap: "wrap" }}>
+        <MacroRing protein={totals.protein} carbs={totals.carbs} fat={totals.fat} calories={totals.calories} />
+        <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 16 }}>
+          {macros.map(m => (
+            <div key={m.name}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                <span className="k-row-title">{m.name}</span>
+                <span className="k-row-sub">{Math.round(m.grams)}g · {m.pct}%</span>
               </div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-                <span style={{ fontFamily: "var(--font-heading-stack)", fontSize: 28, fontWeight: 700, color: "var(--fg)", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{s.value}</span>
-                <span style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, color: "var(--text-secondary)", textTransform: "uppercase" }}>{s.unit}</span>
+              <div style={{ height: 7, borderRadius: "var(--r-pill)", background: "var(--surface-elevated)", overflow: "hidden" }}>
+                <div style={{ width: `${m.pct}%`, height: "100%", background: m.color, borderRadius: "var(--r-pill)" }} />
               </div>
             </div>
           ))}
         </div>
+      </Card>
 
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 2, marginBottom: 32 }}>
-          {/* Meal log */}
-          <div className="card-surface" style={{ padding: 24 }}>
-            <h3 style={{ fontFamily: "var(--font-heading-stack)", fontSize: 13, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--fg)", marginBottom: 20 }}>
-              Meals
-            </h3>
-            {loading ? (
-              <p style={{ color: "var(--text-secondary)", fontFamily: "var(--font-heading-stack)", fontSize: 12 }}>Loading…</p>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                {MEAL_TYPES.map(mt => {
-                  const mealLogs = logs.filter(l => l.meal_type === mt)
-                  return (
-                    <div key={mt}>
-                      <p className="label-sm" style={{ marginBottom: 8 }}>{mt}</p>
-                      {mealLogs.length === 0 ? (
-                        <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, color: "var(--text-secondary)", padding: "8px 0" }}>Nothing logged</p>
-                      ) : (
-                        mealLogs.map(l => (
-                          <div key={l.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
-                            <div>
-                              <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, fontWeight: 600, color: "var(--fg)", textTransform: "uppercase" }}>{l.food_name}</p>
-                              <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 10, color: "var(--text-secondary)" }}>
-                                P: {l.protein_g}g · C: {l.carbs_g}g · F: {l.fat_g}g
-                              </p>
-                            </div>
-                            <span style={{ fontFamily: "var(--font-heading-stack)", fontSize: 13, fontWeight: 700, color: "var(--fg)", fontVariantNumeric: "tabular-nums" }}>
-                              {l.calories} kcal
-                            </span>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Macro donut */}
-          <div className="card-surface" style={{ padding: 24 }}>
-            <h3 style={{ fontFamily: "var(--font-heading-stack)", fontSize: 13, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--fg)", marginBottom: 20 }}>
-              Macros
-            </h3>
-            {macroData.length > 0 ? (
-              <>
-                <div style={{ height: 160 }} aria-hidden="true">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={macroData} dataKey="value" cx="50%" cy="50%" outerRadius={60} innerRadius={35}>
-                        {macroData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                      </Pie>
-                      <Tooltip contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 0, fontSize: 11, fontFamily: "var(--font-heading-stack)" }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {macroData.map(d => (
-                    <div key={d.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <div style={{ width: 8, height: 8, background: d.color }} />
-                        <span className="label-sm">{d.name}</span>
+      {/* Meals */}
+      <Card>
+        <h3 className="k-title" style={{ marginBottom: 20 }}>Meals</h3>
+        {loading ? (
+          <EmptyState message="Loading…" />
+        ) : logs.length === 0 ? (
+          <EmptyState message="Nothing logged today — scan a meal to get started." actionHref="/nutrition/scan" actionLabel="Scan food" />
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            {MEAL_TYPES.map(mt => {
+              const mealLogs = logs.filter(l => l.meal_type === mt)
+              if (mealLogs.length === 0) return null
+              return (
+                <div key={mt}>
+                  <p className="k-eyebrow" style={{ marginBottom: 8, textTransform: "capitalize" }}>{mt}</p>
+                  {mealLogs.map(l => (
+                    <div key={l.id} className="k-list-row">
+                      <div>
+                        <p className="k-row-title">{l.food_name}</p>
+                        <p className="k-row-sub" style={{ marginTop: 2 }}>P {l.protein_g}g · C {l.carbs_g}g · F {l.fat_g}g</p>
                       </div>
-                      <span style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, fontWeight: 600, color: "var(--fg)" }}>{Math.round(d.value)}g</span>
+                      <span style={{ fontFamily: "var(--font-display)", fontSize: 20, fontWeight: 600, color: "var(--fg)" }}>
+                        {l.calories}<span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: 3 }}>kcal</span>
+                      </span>
                     </div>
                   ))}
                 </div>
-              </>
-            ) : (
-              <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, color: "var(--text-secondary)", textAlign: "center", padding: "20px 0" }}>Log food to see macros</p>
-            )}
+              )
+            })}
           </div>
-        </div>
-      </main>
-    </div>
+        )}
+      </Card>
+    </PageShell>
   )
 }
