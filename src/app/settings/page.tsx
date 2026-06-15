@@ -2,13 +2,31 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
+import { exportWorkoutsCsv, exportAllJson } from "@/lib/export"
 
 export default function SettingsPage() {
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
+  const [exporting, setExporting] = useState<"csv" | "json" | null>(null)
+  const [exportError, setExportError] = useState("")
   const router = useRouter()
+
+  async function doExport(kind: "csv" | "json") {
+    if (!user) return
+    setExporting(kind)
+    setExportError("")
+    try {
+      const supabase = createClient()
+      if (kind === "csv") await exportWorkoutsCsv(supabase, user.id)
+      else await exportAllJson(supabase, user.id)
+    } catch (err) {
+      console.error("Export failed:", err)
+      setExportError("Export failed. Please try again.")
+    } finally {
+      setExporting(null)
+    }
+  }
 
   useEffect(() => {
     const supabase = createClient()
@@ -36,6 +54,20 @@ export default function SettingsPage() {
         <div className="card-elevated" style={{ padding: 24, marginBottom: 24 }}>
           <p className="label-sm">MEMBER SINCE</p>
           <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 14, fontWeight: 600, color: "var(--fg)" }}>{profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : "—"}</p>
+        </div>
+
+        <div className="card-elevated" style={{ padding: 24, marginBottom: 24 }}>
+          <p className="label-sm" style={{ marginBottom: 4 }}>YOUR DATA</p>
+          <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, color: "var(--text-secondary)" }}>Export everything you&apos;ve logged — it&apos;s yours to keep.</p>
+          <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+            <button onClick={() => doExport("csv")} disabled={exporting !== null} className="btn-outline" style={{ fontSize: 12, padding: "10px 16px" }}>
+              {exporting === "csv" ? "Exporting…" : "Workouts (CSV)"}
+            </button>
+            <button onClick={() => doExport("json")} disabled={exporting !== null} className="btn-outline" style={{ fontSize: 12, padding: "10px 16px" }}>
+              {exporting === "json" ? "Exporting…" : "Full export (JSON)"}
+            </button>
+          </div>
+          {exportError && <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, color: "var(--danger)", marginTop: 8 }}>{exportError}</p>}
         </div>
 
         <button onClick={async () => { try { await createClient().auth.signOut() } catch {}; router.push("/auth/login") }} className="btn-primary" style={{ background: "var(--accent-red)", width: "100%", justifyContent: "center", padding: "14px 0" }}>
