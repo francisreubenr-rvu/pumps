@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { callDeepSeekStructured, withGuardrail, deepSeekErrorResponse } from "@/lib/deepseek"
+import { enforceAiQuota } from "@/lib/entitlements"
 import { log } from "@/lib/log"
 import { createServiceSupabaseClient } from "@/lib/supabase/server"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
 
 const SYSTEM_PROMPT = withGuardrail(`You are a supportive fitness coach analyzing a week of training journal entries.
 Be direct, specific, and motivating. Avoid generic advice.
@@ -29,11 +29,8 @@ const InsightsSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createServerSupabaseClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+    const gate = await enforceAiQuota("ai.journal_insights")
+    if (!gate.ok) return gate.response
 
     const body = await request.json()
     const { entries, workoutSummary, journalId } = body ?? {}
@@ -67,6 +64,7 @@ ${workoutSummary ? `\nWorkout stats: ${JSON.stringify(workoutSummary)}` : ""}
       )
     }
 
+    await gate.record()
     return NextResponse.json(parsed)
   } catch (err) {
     log.exception("ai.journal_insights_error", err)
