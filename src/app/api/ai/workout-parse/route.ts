@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { callDeepSeekStructured, withGuardrail, deepSeekErrorResponse } from "@/lib/deepseek"
+import { enforceAiQuota } from "@/lib/entitlements"
 import { log } from "@/lib/log"
 
 const SYSTEM_PROMPT = withGuardrail(`You are a gym workout parser. Parse natural language workout descriptions into structured JSON.
@@ -25,6 +26,9 @@ const ParsedWorkoutSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const gate = await enforceAiQuota("ai.workout_parse")
+    if (!gate.ok) return gate.response
+
     const body = await request.json()
     const text: string = body?.text ?? ""
 
@@ -44,6 +48,7 @@ export async function POST(request: Request) {
       { temperature: 0.2, max_tokens: 1024 }
     )
 
+    await gate.record()
     return NextResponse.json(parsed)
   } catch (err) {
     log.exception("ai.workout_parse_error", err)

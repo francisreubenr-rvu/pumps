@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { callDeepSeekStructured, withGuardrail, deepSeekErrorResponse } from "@/lib/deepseek"
+import { enforceAiQuota } from "@/lib/entitlements"
 import { log } from "@/lib/log"
 
 // NOTE (vision model): DeepSeek's public chat-completions API
@@ -44,6 +45,9 @@ const CalorieScanSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const gate = await enforceAiQuota("ai.calorie_scan")
+    if (!gate.ok) return gate.response
+
     const body = await request.json()
     const imageBase64: string = body?.imageBase64 ?? ""
 
@@ -73,6 +77,7 @@ export async function POST(request: Request) {
       { temperature: 0.3, max_tokens: 1024, model: VISION_MODEL }
     )
 
+    await gate.record()
     return NextResponse.json(parsed)
   } catch (err) {
     log.exception("ai.calorie_scan_error", err)

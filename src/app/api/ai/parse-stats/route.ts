@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { callDeepSeekStructured, deepSeekErrorResponse } from "@/lib/deepseek"
+import { enforceAiQuota } from "@/lib/entitlements"
 import { log } from "@/lib/log"
 
 const SYSTEM_PROMPT = `You are a strict gym/fitness stat extraction engine. The user will give a free-text description of THEMSELVES (their body stats, training experience, goals, and known lifts). Your ONLY job is to extract that information into structured JSON. You do not chat, advise, or add commentary.
@@ -92,6 +93,9 @@ const NUMERIC_FIELDS = [
 
 export async function POST(request: Request) {
   try {
+    const gate = await enforceAiQuota("ai.parse_stats")
+    if (!gate.ok) return gate.response
+
     const body = await request.json().catch(() => null)
     const text: string = body?.text ?? ""
 
@@ -119,6 +123,7 @@ export async function POST(request: Request) {
       }
     }
 
+    await gate.record()
     return NextResponse.json({ stats: result })
   } catch (err) {
     log.exception("ai.parse_stats_error", err)

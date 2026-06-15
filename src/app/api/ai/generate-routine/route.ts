@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { callDeepSeekStructured, withGuardrail, deepSeekErrorResponse } from "@/lib/deepseek"
+import { enforceAiQuota } from "@/lib/entitlements"
 import { log } from "@/lib/log"
 
 const SYSTEM_PROMPT = withGuardrail(`You are an expert strength and conditioning coach with 20 years of experience.
@@ -36,6 +37,9 @@ const GeneratedRoutineSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    const gate = await enforceAiQuota("ai.generate_routine")
+    if (!gate.ok) return gate.response
+
     const body = await request.json()
     const { goal, days_per_week, equipment, experience } = body ?? {}
 
@@ -66,6 +70,7 @@ export async function POST(request: Request) {
       { temperature: 0.5, max_tokens: 3000 }
     )
 
+    await gate.record()
     return NextResponse.json(parsed)
   } catch (err) {
     log.exception("ai.generate_routine_error", err)
