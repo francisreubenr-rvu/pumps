@@ -79,6 +79,8 @@ export async function callDeepSeek(
     throw new DeepSeekConfigError()
   }
 
+  const model = opts?.model ?? "deepseek-chat"
+  const startedAt = Date.now()
   const res = await fetch("https://api.deepseek.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -86,7 +88,7 @@ export async function callDeepSeek(
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: opts?.model ?? "deepseek-chat",
+      model,
       messages,
       max_tokens: opts?.max_tokens ?? 2048,
       temperature: opts?.temperature ?? 0.3,
@@ -95,20 +97,24 @@ export async function callDeepSeek(
       ...(opts?.json ? { response_format: { type: "json_object" } } : {}),
     }),
   })
+  const latencyMs = Date.now() - startedAt
 
   if (!res.ok) {
     const body = await res.text().catch(() => "")
     // Log the real upstream status/body server-side for debugging.
-    log.error("deepseek.upstream_error", { status: res.status, body: body.slice(0, 500) })
+    log.error("deepseek.upstream_error", { status: res.status, latencyMs, body: body.slice(0, 500) })
     throw new DeepSeekApiError(res.status, body)
   }
 
   const data = await res.json()
   const content = data?.choices?.[0]?.message?.content
   if (typeof content !== "string") {
-    log.error("deepseek.unexpected_shape", { sample: JSON.stringify(data)?.slice(0, 500) })
+    log.error("deepseek.unexpected_shape", { latencyMs, sample: JSON.stringify(data)?.slice(0, 500) })
     throw new DeepSeekApiError(res.status, "Unexpected response shape from DeepSeek")
   }
+  // Success metadata for the AI subsystem — latency + token usage, queryable in
+  // the platform logs (the report's "typed AI subsystem with stored metadata").
+  log.info("deepseek.ok", { model, latencyMs, tokens: data?.usage?.total_tokens ?? null })
   return content
 }
 

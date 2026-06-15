@@ -119,12 +119,24 @@ Pillars, roughly in dependency order:
 4. **Notifications pipeline.** Streak-at-risk nudges, competition results, squad activity — via `pg_cron` + Edge Functions + (later) web push / email. The audit/event spine and `background_jobs` table feed this.
 5. **Admin & moderation tooling.** 🟡 *Started:* a secure admin role — `admins` table (no client write → no self-promotion) + a `SECURITY DEFINER` `is_admin()` so RLS policies don't recurse (00015) — and an admin-gated `/admin` panel showing the full `audit_events` trail (actor / action / entity / detail). Foundation for the rest. *Remaining:* leaderboard-correction flow, squad/media abuse moderation, failed-AI-job review, and a per-action moderation UI. *(Grant the first admin once via SQL: `insert into admins (user_id) values ('…')`.)*
 6. **Export & data portability.** ✅ Self-serve export from Settings: full training-log **CSV** (one row per set) + a complete **JSON** export (workouts + exercises + sets, journals, meals). Client-side, RLS-scoped, soft-deleted rows excluded. *(Follow-up: PDF, and a one-click "delete my account/data" companion.)*
-7. **Deferred depth from Stage 2.** ✅ Training-readiness inference (ACWR) shipped. *Remaining:* voice journaling → transcript → the schema-validated parser (media path established); AI confidence scoring + stored request/response metadata + ambiguity-surfacing (the report's typed-AI subsystem). **Screen ports to the `/rebuild` blueprint:** ✅ **complete** — Dashboard, Leaderboard, Nutrition (SVG calorie ring), Profile (tokenized hero), and the live workout logger (live sets+volume session feedback added; draft/offline-sync logic untouched). All flagship surfaces now on the design system.
+7. **Deferred depth from Stage 2.** ✅ Training-readiness inference (ACWR) shipped. ✅ AI-subsystem observability — every model call logs latency + token usage + outcome through the structured logger (the report's "typed AI subsystem with stored metadata"). *Remaining (account-gated): voice journaling → transcript (needs a transcription provider); per-field confidence + ambiguity-surfacing UI.* **Screen ports to the `/rebuild` blueprint:** ✅ **complete** — Dashboard, Leaderboard, Nutrition (SVG calorie ring), Profile (tokenized hero), and the live workout logger (live sets+volume session feedback added; draft/offline-sync logic untouched). All flagship surfaces now on the design system.
 8. **Mobile / offline hardening (Expo path).** The `offline-queue` + draft persistence are the conceptual seed; Stage 3+ is the React Native / Expo client with SQLite-backed local-first sync and explicit merge rules — a *new client over the same domain core*, not a rewrite.
 
 Stage-3 discipline (the difference from Stage 2): tested RLS in CI (the pgTAP suite runs in the pipeline, not just locally), reproducible migrations against a staging environment, job idempotency, restore drills, and a CWV budget enforced in CI. Same stack — Next.js + Supabase — more rigor.
 
 Exit criteria: PUMPS can take on real growth — paying users, support load, and data volume — without the data-trust, performance, or operability guarantees from Stages 0–2 degrading.
+
+**Stage 3 status — substantially complete (the app-side scope is shipped):** observability (analytics + Web Vitals + client/server error capture + AI latency/usage) ✅; entitlements + AI quota metering ✅; admin role + audit panel ✅; export & portability ✅; all flagship screens ported to the design system ✅; readiness inference + AI-subsystem metadata ✅.
+
+**Deliberately not built — gated, not skipped:**
+- **Canonical rollups + `pg_cron`** — pull forward only when a screen is *measurably* slow at real volume (the `metrics` module remains the single source of truth).
+- **Billing provider (Stripe/LemonSqueezy)** — schema + entitlement check are ready; needs the account + a webhook that writes `subscriptions.tier`.
+- **Error-tracking SDK (Sentry)** — the `captureError` seam + client/server capture are wired; needs a DSN.
+- **Notifications pipeline** — needs a push/email provider + `pg_cron`/Edge scheduling.
+- **Voice journaling** — needs a transcription provider; the media/Storage path is established.
+- **Expo / React Native client** — a new local-first client over the same domain core (the `offline-queue` is the seed), not a rewrite. This is the genuine Stage-3+ frontier.
+
+Each is a clean, documented next step that activates with one external decision — none requires reworking Stages 0–3.
 
 ---
 
