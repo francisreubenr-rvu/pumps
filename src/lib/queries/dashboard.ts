@@ -2,13 +2,22 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { createClient } from "@/lib/supabase/client"
-import { totalVolume, weeklyVolume, currentStreak, type DatedSetInput } from "@/lib/metrics"
+import {
+  totalVolume,
+  weeklyVolume,
+  currentStreak,
+  acuteChronicRatio,
+  readinessFromRatio,
+  type DatedSetInput,
+  type Readiness,
+} from "@/lib/metrics"
 import { queryKeys } from "./keys"
 
 export type DashboardData = {
   workoutCount: number
   volume: number
   streak: number
+  readiness: Readiness & { ratio: number | null }
   recentWorkouts: any[]
   activeComps: any[]
   volumeHistory: { week: string; volume: number }[]
@@ -70,10 +79,13 @@ export function useDashboardData(userId: string | undefined) {
         date: r.workout_exercises?.workouts?.started_at ?? r.created_at,
       }))
 
+      const acwr = acuteChronicRatio(historySets)
+
       return {
         workoutCount: wc.count ?? 0,
         volume: totalVolume(volumeSets),
         streak: currentStreak((wd.data ?? []).map((r: any) => r.started_at)),
+        readiness: { ...readinessFromRatio(acwr.ratio), ratio: acwr.ratio },
         recentWorkouts: rw.data ?? [],
         activeComps: ac.data ?? [],
         volumeHistory: weeklyVolume(historySets, 8),

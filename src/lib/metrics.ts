@@ -126,6 +126,44 @@ export function muscleFrequency(
     .map(([category, n]) => ({ category, sets: n }))
 }
 
+/**
+ * Acute:chronic workload ratio (ACWR) — the standard training-load readiness
+ * heuristic. Acute = volume over the last 7 days; chronic = the average weekly
+ * volume over the last 28 days. ratio = acute / chronic-weekly.
+ *   ~0.8–1.3 is the "sweet spot"; >1.5 flags a load spike (overreaching risk);
+ *   <0.8 suggests detraining. `ratio` is null until there's enough history.
+ */
+export function acuteChronicRatio(
+  sets: DatedSetInput[],
+  now: Date = new Date()
+): { acute: number; chronicWeekly: number; ratio: number | null } {
+  const DAY = 86_400_000
+  const acuteCutoff = now.getTime() - 7 * DAY
+  const chronicCutoff = now.getTime() - 28 * DAY
+
+  let acute = 0
+  let chronic = 0
+  for (const s of sets) {
+    const t = new Date(s.date).getTime()
+    const vol = volumeOf(s.reps, s.weight_kg)
+    if (t >= chronicCutoff) chronic += vol
+    if (t >= acuteCutoff) acute += vol
+  }
+  const chronicWeekly = chronic / 4
+  return { acute, chronicWeekly, ratio: chronicWeekly > 0 ? acute / chronicWeekly : null }
+}
+
+export type Readiness = { label: string; tone: "good" | "caution" | "warn" | "muted" }
+
+/** Classify an ACWR into a readiness label + tone. */
+export function readinessFromRatio(ratio: number | null): Readiness {
+  if (ratio === null) return { label: "Not enough data", tone: "muted" }
+  if (ratio < 0.8) return { label: "Detraining", tone: "caution" }
+  if (ratio <= 1.3) return { label: "Optimal", tone: "good" }
+  if (ratio <= 1.5) return { label: "Building", tone: "caution" }
+  return { label: "High load", tone: "warn" }
+}
+
 /** A logged meal, normalized away from the DB row shape. */
 export type MealInput = {
   calories: number | null
