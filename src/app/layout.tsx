@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next"
 import { Saira, Teko } from "next/font/google"
+import { Analytics } from "@vercel/analytics/next"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 import { ModeProvider } from "@/lib/mode-context"
 import { QueryProvider } from "@/lib/query-provider"
 import { SyncManager } from "@/components/sync-manager"
@@ -66,6 +68,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ModeProvider><ThemeEnvironment />{children}</ModeProvider>
           <SyncManager />
         </QueryProvider>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   )
