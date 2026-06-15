@@ -10,6 +10,8 @@ import {
   muscleFrequency,
   distinctExercises,
   currentStreak,
+  acuteChronicRatio,
+  readinessFromRatio,
   mealTotals,
 } from "./metrics"
 
@@ -149,6 +151,40 @@ describe("currentStreak", () => {
     expect(currentStreak([dayOffset(0), dayOffset(0)])).toBe(1)
   })
   test("empty → 0", () => expect(currentStreak([])).toBe(0))
+})
+
+describe("acuteChronicRatio", () => {
+  const NOW = new Date("2026-02-01T12:00:00Z")
+  const at = (daysAgo: number) => new Date(NOW.getTime() - daysAgo * 86_400_000).toISOString()
+
+  test("null ratio when there's no chronic history", () => {
+    expect(acuteChronicRatio([], NOW).ratio).toBeNull()
+  })
+  test("steady load → ratio ~1", () => {
+    // 100 volume once inside the 7d window (day 1) + once per prior week →
+    // acute=100, chronic 28d=400, weekly=100, ratio=1. Days avoid the cutoffs.
+    const sets = [1, 8, 15, 22].map(d => ({ reps: 1, weight_kg: 100, date: at(d) }))
+    const { ratio } = acuteChronicRatio(sets, NOW)
+    expect(ratio).toBeCloseTo(1, 5)
+  })
+  test("recent spike → ratio > 1.5", () => {
+    // big acute load, little prior → high ratio
+    const sets = [
+      { reps: 1, weight_kg: 1000, date: at(1) },
+      { reps: 1, weight_kg: 100, date: at(20) },
+    ]
+    expect(acuteChronicRatio(sets, NOW).ratio! > 1.5).toBe(true)
+  })
+})
+
+describe("readinessFromRatio", () => {
+  test("buckets", () => {
+    expect(readinessFromRatio(null).tone).toBe("muted")
+    expect(readinessFromRatio(0.5).label).toBe("Detraining")
+    expect(readinessFromRatio(1.0).label).toBe("Optimal")
+    expect(readinessFromRatio(1.4).label).toBe("Building")
+    expect(readinessFromRatio(2.0).label).toBe("High load")
+  })
 })
 
 describe("mealTotals", () => {

@@ -23,6 +23,13 @@ const BarSeriesChart = dynamic(() => import("@/components/charts/bar-series-char
   loading: () => <div style={{ height: 200 }} aria-hidden="true" />,
 })
 
+const READINESS_COLOR: Record<string, string> = {
+  good: "var(--accent)",
+  caution: "var(--warning)",
+  warn: "var(--danger)",
+  muted: "var(--text-secondary)",
+}
+
 function greeting(): string {
   const h = new Date().getHours()
   if (h < 12) return "Good morning"
@@ -46,6 +53,7 @@ export default function DashboardPage() {
   const workoutCount = data?.workoutCount ?? 0
   const volume = data?.volume ?? 0
   const streak = data?.streak ?? 0
+  const readiness = data?.readiness
   const recentWorkouts = data?.recentWorkouts ?? []
   const activeComps = data?.activeComps ?? []
   const volumeHistory = data?.volumeHistory ?? []
@@ -94,6 +102,23 @@ export default function DashboardPage() {
         <StatCard icon={Swords} label="LIVE COMPS" value={activeComps.length} animate delay={300} />
         <StatCard icon={Flame} label="STREAK" value={loading ? "…" : streak} unit={streak === 1 ? "DAY" : "DAYS"} animate={!loading} delay={400} />
       </div>
+
+      {/* Training readiness (acute:chronic workload) */}
+      {readiness && (
+        <Card className="k-section" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <div>
+            <p className="k-eyebrow" style={{ marginBottom: 6 }}>Training readiness</p>
+            <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em", color: READINESS_COLOR[readiness.tone] }}>
+              {readiness.label}
+            </p>
+          </div>
+          <p className="k-row-sub" style={{ maxWidth: "32ch", textAlign: "right" }}>
+            {readiness.ratio == null
+              ? "Log a few weeks to assess your load."
+              : <>Acute:chronic load <span style={{ color: "var(--fg)", fontWeight: 600 }}>{readiness.ratio.toFixed(2)}</span> — last 7 days vs 28-day average.</>}
+          </p>
+        </Card>
+      )}
 
       {/* Volume chart */}
       <Card className="k-section">
