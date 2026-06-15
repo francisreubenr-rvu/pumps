@@ -107,6 +107,25 @@ Goal: the things competitors are actually judged on.
 
 Exit criteria: install it next to Hevy/Strong and it holds up — never loses data ✅, never shows a wrong number ✅, feels faster ✅. **Stage 2 core is shipped; the remaining items (full RSC, voice, fatigue inference, broader polish) are deliberately staged as ongoing rather than blockers.**
 
+### Stage 3 — Scale & Operate (the mid-scale SaaS tier)
+
+Stages 0–2 made PUMPS *correct, trustworthy, and world-class to use* for a small user base. Stage 3 is the report's **mid-scale SaaS-standard** tier: the rigor and infrastructure that let it grow without the data trust or operability cracking. **Do not start this for scale you don't have** — pull each item forward only when a real signal demands it (a slow screen, a support burden, a monetization need). It is the *architecture to grow into*, sequenced so nothing here is a rewrite of Stage 0–2.
+
+Pillars, roughly in dependency order:
+
+1. **Operability & observability (do first).** Wire the error-tracking seam (`lib/log.ts` → Sentry) to a real DSN; add alerting on error-rate/latency; a lightweight product-analytics layer (funnel: signup → first workout → streak). This is what turns "it works on my machine" into "I know it works for everyone."
+2. **Entitlements & billing.** The identity model already has a subscription-tier concept — enforce it: a `subscriptions`/entitlements check gating premium features (AI quota, advanced analytics), Stripe (or LemonSqueezy) integration, and a `quota_events` table so AI usage is metered, not unbounded.
+3. **Canonical rollups + `pg_cron`** *(deferred from Stage 1 — now justified).* When the per-page aggregation over raw sets becomes measurably slow at real data volume, introduce `volume_daily_rollups` / `e1rm_rollups` / `streak_rollups` recomputed by `pg_cron` + a `background_jobs` table, and have screens read rollups. **Only when measured** — the canonical `metrics` module stays the source of truth that the rollups are derived from and tested against.
+4. **Notifications pipeline.** Streak-at-risk nudges, competition results, squad activity — via `pg_cron` + Edge Functions + (later) web push / email. The audit/event spine and `background_jobs` table feed this.
+5. **Admin & moderation tooling.** The report's ops module: an internal panel over `audit_events` for corrections, a leaderboard-correction flow, abuse/moderation on squads + media, and failed-AI-job review. Trust scales only with the tooling to *fix* things.
+6. **Export & data portability.** CSV/JSON/PDF export of a user's workouts/history — table-stakes for trust ("it's my data") and a churn-reducer.
+7. **Deferred depth from Stage 2.** Voice journaling → transcript → the schema-validated parser (media path established); fatigue/readiness inference from the rollups; AI confidence scoring + stored request/response metadata + ambiguity-surfacing (the report's typed-AI subsystem); finish porting the remaining screens (logger, Nutrition, Profile) to the `/rebuild` blueprint.
+8. **Mobile / offline hardening (Expo path).** The `offline-queue` + draft persistence are the conceptual seed; Stage 3+ is the React Native / Expo client with SQLite-backed local-first sync and explicit merge rules — a *new client over the same domain core*, not a rewrite.
+
+Stage-3 discipline (the difference from Stage 2): tested RLS in CI (the pgTAP suite runs in the pipeline, not just locally), reproducible migrations against a staging environment, job idempotency, restore drills, and a CWV budget enforced in CI. Same stack — Next.js + Supabase — more rigor.
+
+Exit criteria: PUMPS can take on real growth — paying users, support load, and data volume — without the data-trust, performance, or operability guarantees from Stages 0–2 degrading.
+
 ---
 
 ## What NOT to build (per the report, still true)
