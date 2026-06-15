@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { useCreateWorkout } from "@/lib/queries/mutations"
+import { totalVolume } from "@/lib/metrics"
 import { Plus, Trash2, Save, Clock, Check, RotateCcw } from "lucide-react"
 import { DetailShell, Card, PageTitle } from "@/components/ui/kinetic"
 
@@ -127,6 +128,11 @@ export default function NewWorkoutPage() {
   const hasLoggedSets = selected.some(eid => (sets[eid]?.length ?? 0) > 0)
   const fmt = (s: number) => `${Math.floor(s/60)}:${String(s%60).padStart(2, "0")}`
 
+  // Live session feedback — sets logged + running volume, via the canonical metric.
+  const allSets = selected.flatMap(eid => (sets[eid] ?? []).map(s => ({ reps: s.reps, weight_kg: s.weight })))
+  const loggedSets = allSets.length
+  const sessionVolume = totalVolume(allSets)
+
   return (
     <DetailShell
       crumb="Log Workout"
@@ -137,7 +143,7 @@ export default function NewWorkoutPage() {
       }
     >
       <div className="k-section">
-        <PageTitle title="New Workout" />
+        <PageTitle title="New workout" />
         {draftRestored && (
           <div className="card-surface" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 14px", marginTop: 16, flexWrap: "wrap" }}>
             <span className="k-row-sub" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
@@ -153,13 +159,27 @@ export default function NewWorkoutPage() {
 
       <div className="new-workout-grid" style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 24, alignItems: "start" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          {selected.length > 0 && (
+            <div style={{ display: "flex", gap: 28, padding: "0 4px 12px" }}>
+              <div>
+                <div className="k-eyebrow">Sets logged</div>
+                <div className="k-stat" style={{ fontSize: 30, marginTop: 4 }}>{loggedSets}</div>
+              </div>
+              <div>
+                <div className="k-eyebrow">Volume</div>
+                <div className="k-stat" style={{ fontSize: 30, marginTop: 4 }}>
+                  {Math.round(sessionVolume).toLocaleString()}<span className="k-stat-unit"> kg</span>
+                </div>
+              </div>
+            </div>
+          )}
           {selected.map(eid => {
             const ex = exercises.find(e => e.id === eid)
             const ess = sets[eid] || []
             return (
               <Card key={eid} elevated>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                  <h3 className="k-title">{ex?.name}</h3>
+                  <h3 className="k-title">{ex?.name}{ess.length > 0 && <span className="k-row-sub" style={{ marginLeft: 8 }}>{ess.length} {ess.length === 1 ? "set" : "sets"}</span>}</h3>
                   <button type="button" onClick={() => removeEx(eid)} aria-label="Remove exercise" style={{ background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", padding: 4, display: "flex" }}><Trash2 size={14} /></button>
                 </div>
                 <div className="stagger">
