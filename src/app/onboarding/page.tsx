@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { AppNav } from "@/components/layout/nav"
 import { VoiceInput } from "@/components/onboarding/voice-input"
+import { Slider } from "@/components/ui/interactive"
+import { Reveal } from "@/components/ui/motion"
+import { Hl } from "@/components/ui/statement"
+import { NumberedSteps } from "@/components/ui/numbered-steps"
 import { Sparkles } from "lucide-react"
 
 type StatFields = {
@@ -24,10 +28,10 @@ type StatFields = {
 
 const EMPTY_STATS: StatFields = {
   display_name: "",
-  age: "",
+  age: "22",
   sex: "",
-  height_cm: "",
-  weight_kg: "",
+  height_cm: "175",
+  weight_kg: "75",
   body_fat_pct: "",
   experience_level: "",
   primary_goal: "",
@@ -56,6 +60,13 @@ function strOrNull(v: string): string | null {
   return t === "" ? null : t
 }
 
+// Slider needs a finite number; fall back to a sensible default when the form
+// value is blank or non-numeric (e.g. AI returned null for that field).
+function sliderVal(raw: string, fallback: number): number {
+  const n = Number(raw)
+  return Number.isFinite(n) && n > 0 ? n : fallback
+}
+
 export default function OnboardingPage() {
   const [username, setUsername] = useState("")
   const [rawText, setRawText] = useState("")
@@ -64,7 +75,24 @@ export default function OnboardingPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const [notice, setNotice] = useState("")
+  const [step, setStep] = useState(0)
   const router = useRouter()
+
+  const STEPS = [
+    { n: "01", label: "Identity" },
+    { n: "02", label: "Body" },
+    { n: "03", label: "Lifts" },
+    { n: "04", label: "Finish" },
+  ]
+
+  function goNext() {
+    setError("")
+    if (step === 0 && (!username || username.length < 3)) {
+      setError("Pick a username (at least 3 characters) to continue.")
+      return
+    }
+    setStep((s) => Math.min(s + 1, STEPS.length - 1))
+  }
 
   useEffect(() => {
     const supabase = createClient()
@@ -130,10 +158,10 @@ export default function OnboardingPage() {
     }
   }
 
-  async function save(e: React.FormEvent) {
-    e.preventDefault()
+  async function save() {
     if (!username || username.length < 3) {
       setError("Pick a username (at least 3 characters).")
+      setStep(0)
       return
     }
     setError("")
@@ -190,37 +218,45 @@ export default function OnboardingPage() {
   return (
     <div style={{ backgroundColor: "var(--bg)", minHeight: "100vh" }}>
       <AppNav />
-      <div className="page-container" style={{ maxWidth: 560, paddingBottom: 64 }}>
-        <div style={{ textAlign: "center", margin: "32px 0 28px" }}>
-          <h1
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: "clamp(40px, 11vw, 56px)",
-              fontWeight: 600,
-              letterSpacing: "-0.02em",
-              textTransform: "uppercase",
-              color: "var(--fg)",
-              lineHeight: 1,
-            }}
-          >
-            Set Up Your Profile
-          </h1>
-          <p
-            style={{
-              fontFamily: "var(--font-heading-stack)",
-              fontSize: 12,
-              fontWeight: 600,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              color: "var(--accent)",
-              marginTop: 8,
-            }}
-          >
-            Tell us about yourself — type or speak
-          </p>
-        </div>
+      <div className="page-container" style={{ position: "relative", maxWidth: 880, paddingBottom: 64 }}>
+        <span className="k-rail left" aria-hidden="true">ONBOARDING</span>
+        <Reveal variant="fade" duration={800}>
+          <div style={{ textAlign: "center", margin: "40px 0 32px", position: "relative" }}>
+            <div aria-hidden="true" className="hero-aurora" style={{ inset: "-60% -30% auto -30%", height: "180%", opacity: 0.6 }} />
+            <h1
+              className="k-glow-text"
+              style={{
+                position: "relative",
+                fontFamily: "var(--font-display)",
+                fontSize: "clamp(44px, 12vw, 64px)",
+                fontWeight: 600,
+                letterSpacing: "-0.01em",
+                textTransform: "uppercase",
+                color: "var(--fg)",
+                lineHeight: 1,
+              }}
+            >
+              Build your <Hl serif>profile</Hl>
+            </h1>
+            <p
+              style={{
+                position: "relative",
+                fontFamily: "var(--font-heading-stack)",
+                fontSize: 12,
+                fontWeight: 600,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: "var(--accent)",
+                marginTop: 10,
+              }}
+            >
+              Tell us about yourself — type or speak
+            </p>
+          </div>
+        </Reveal>
 
         {/* AI capture card */}
+        <Reveal variant="up" delay={120}>
         <div className="card-elevated" style={{ padding: 24, marginBottom: 24 }}>
           <label htmlFor="onboard-raw" className="label-sm">
             ABOUT YOU
@@ -247,7 +283,7 @@ export default function OnboardingPage() {
               type="button"
               onClick={autofill}
               disabled={parsing || !rawText.trim()}
-              className="btn-primary"
+              className="btn-primary btn-shine"
               style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 16px", fontSize: 13 }}
             >
               <Sparkles size={16} aria-hidden="true" />
@@ -268,9 +304,29 @@ export default function OnboardingPage() {
             </p>
           )}
         </div>
+        </Reveal>
 
-        {/* Editable stat form */}
-        <form onSubmit={save} className="card-elevated" style={{ padding: 24, display: "flex", flexDirection: "column", gap: 18 }}>
+        {/* Stepped profile form — NumberedSteps rail + paged field groups */}
+        <Reveal variant="up" delay={220}>
+        <div style={{ display: "flex", gap: "clamp(24px, 4vw, 48px)", flexWrap: "wrap", alignItems: "flex-start" }}>
+          <div style={{ flex: "0 0 auto", minWidth: 150 }}>
+            <NumberedSteps
+              steps={STEPS}
+              active={step}
+              onSelect={(i) => {
+                setError("")
+                if (i > step && (!username || username.length < 3)) { setError("Pick a username first."); setStep(0); return }
+                setStep(i)
+              }}
+            />
+          </div>
+
+          <form
+            onSubmit={(e) => { e.preventDefault(); if (step < STEPS.length - 1) goNext(); else save() }}
+            className="card-elevated"
+            style={{ flex: "1 1 340px", minWidth: 0, padding: 24, display: "flex", flexDirection: "column", gap: 18 }}
+          >
+          {step === 0 && (<>
           <div>
             <label htmlFor="onboard-username" className="label-sm">
               USERNAME
@@ -305,25 +361,41 @@ export default function OnboardingPage() {
               style={{ fontSize: 16 }}
             />
           </div>
+          </>)}
+
+          {step === 1 && (<>
+          {/* Body metrics — sliders give a fast, tactile set for bounded ranges */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <Slider
+              label="AGE"
+              unit="yrs"
+              min={13}
+              max={80}
+              step={1}
+              value={sliderVal(stats.age, 22)}
+              onChange={(v) => setField("age", String(v))}
+            />
+            <Slider
+              label="HEIGHT"
+              unit="cm"
+              min={130}
+              max={220}
+              step={1}
+              value={sliderVal(stats.height_cm, 175)}
+              onChange={(v) => setField("height_cm", String(v))}
+            />
+            <Slider
+              label="WEIGHT"
+              unit="kg"
+              min={30}
+              max={200}
+              step={0.5}
+              value={sliderVal(stats.weight_kg, 75)}
+              onChange={(v) => setField("weight_kg", String(v))}
+            />
+          </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <div>
-              <label htmlFor="f-age" className="label-sm">
-                AGE
-              </label>
-              <input
-                id="f-age"
-                type="number"
-                inputMode="numeric"
-                min={10}
-                max={100}
-                placeholder="22"
-                value={stats.age}
-                onChange={(e) => setField("age", e.target.value)}
-                className="input-field"
-                style={{ fontSize: 16 }}
-              />
-            </div>
             <div>
               <label htmlFor="f-sex" className="label-sm">
                 SEX
@@ -339,39 +411,6 @@ export default function OnboardingPage() {
                 <option value="male">Male</option>
                 <option value="female">Female</option>
               </select>
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
-            <div>
-              <label htmlFor="f-height" className="label-sm">
-                HEIGHT (CM)
-              </label>
-              <input
-                id="f-height"
-                type="number"
-                inputMode="decimal"
-                placeholder="178"
-                value={stats.height_cm}
-                onChange={(e) => setField("height_cm", e.target.value)}
-                className="input-field"
-                style={{ fontSize: 16 }}
-              />
-            </div>
-            <div>
-              <label htmlFor="f-weight" className="label-sm">
-                WEIGHT (KG)
-              </label>
-              <input
-                id="f-weight"
-                type="number"
-                inputMode="decimal"
-                placeholder="75"
-                value={stats.weight_kg}
-                onChange={(e) => setField("weight_kg", e.target.value)}
-                className="input-field"
-                style={{ fontSize: 16 }}
-              />
             </div>
             <div>
               <label htmlFor="f-bf" className="label-sm">
@@ -389,7 +428,9 @@ export default function OnboardingPage() {
               />
             </div>
           </div>
+          </>)}
 
+          {step === 2 && (<>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <div>
               <label htmlFor="f-exp" className="label-sm">
@@ -492,6 +533,31 @@ export default function OnboardingPage() {
               </div>
             </div>
           </div>
+          </>)}
+
+          {step === 3 && (<>
+          <div>
+            <p className="k-eyebrow" style={{ color: "var(--accent)", marginBottom: 14 }}>Review &amp; lock it in</p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {[
+                { k: "Username", v: username || "—" },
+                { k: "Name", v: stats.display_name || "—" },
+                { k: "Age / Height / Weight", v: `${stats.age || "—"} yrs · ${stats.height_cm || "—"} cm · ${stats.weight_kg || "—"} kg` },
+                { k: "Experience", v: stats.experience_level || "—" },
+                { k: "Goal", v: stats.primary_goal || "—" },
+                { k: "Bench / Squat / Dead / OHP", v: `${stats.bench_press_kg || "—"} · ${stats.squat_kg || "—"} · ${stats.deadlift_kg || "—"} · ${stats.overhead_press_kg || "—"} kg` },
+              ].map((r) => (
+                <div key={r.k} className="k-list-row" style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                  <span className="k-row-sub">{r.k}</span>
+                  <span className="k-row-title" style={{ textAlign: "right", textTransform: "capitalize" }}>{r.v}</span>
+                </div>
+              ))}
+            </div>
+            <p className="k-row-sub" style={{ marginTop: 14, lineHeight: 1.6 }}>
+              You can refine any of this later in Settings. Time to <Hl serif>lift</Hl>.
+            </p>
+          </div>
+          </>)}
 
           {error && (
             <p
@@ -509,15 +575,40 @@ export default function OnboardingPage() {
             </p>
           )}
 
-          <button
-            type="submit"
-            disabled={busy || username.length < 3}
-            className="btn-primary"
-            style={{ width: "100%", justifyContent: "center", padding: "14px 0", fontSize: 14 }}
-          >
-            {busy ? "Saving…" : "Save & Continue"}
-          </button>
-        </form>
+          {/* Step navigation */}
+          <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
+            {step > 0 && (
+              <button
+                type="button"
+                onClick={() => { setError(""); setStep((s) => Math.max(0, s - 1)) }}
+                className="btn-outline"
+                style={{ flex: "0 0 auto", padding: "13px 22px", fontSize: 13 }}
+              >
+                Back
+              </button>
+            )}
+            {step < STEPS.length - 1 ? (
+              <button
+                type="submit"
+                className="btn-primary btn-shine"
+                style={{ flex: 1, justifyContent: "center", padding: "13px 0", fontSize: 14 }}
+              >
+                Continue
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={busy || username.length < 3}
+                className="btn-primary btn-shine"
+                style={{ flex: 1, justifyContent: "center", padding: "13px 0", fontSize: 14 }}
+              >
+                {busy ? "Saving…" : "Save & Enter"}
+              </button>
+            )}
+          </div>
+          </form>
+        </div>
+        </Reveal>
       </div>
     </div>
   )

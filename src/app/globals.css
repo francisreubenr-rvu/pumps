@@ -86,6 +86,12 @@
   --font-heading-stack: 'Saira', system-ui, sans-serif;
   --font-body:          'Saira', system-ui, sans-serif;
   --font-display:       'Teko', system-ui, sans-serif;
+  --font-accent:        var(--font-newsreader), Georgia, 'Times New Roman', serif;
+
+  /* ── Glow layer — the depth/light upgrade pulled from the reference UIs ── */
+  --glow-accent: 0 0 40px color-mix(in oklch, var(--accent) 35%, transparent);
+  --glow-soft:   0 0 80px color-mix(in oklch, var(--accent) 16%, transparent);
+  --ring-glow:   drop-shadow(0 0 22px color-mix(in oklch, var(--accent) 45%, transparent));
 
   /* ── Motion ── */
   --ease-expo:      cubic-bezier(0.16, 1, 0.3, 1);
@@ -418,6 +424,36 @@ h1, h2, h3, h4, .heading {
 @keyframes floatDown {
   0%, 100% { transform: translateX(-50%) translateY(0); }
   50%       { transform: translateX(-50%) translateY(6px); }
+}
+
+/* ── Hero aurora — slow drifting accent/blue orbs behind the landing title ── */
+.hero-aurora {
+  position: absolute;
+  inset: -25% -12% auto -12%;
+  height: 135%;
+  background:
+    radial-gradient(38% 50% at 28% 32%, color-mix(in oklab, var(--accent) 16%, transparent), transparent 70%),
+    radial-gradient(44% 56% at 74% 62%, rgba(91,141,239,0.12), transparent 72%),
+    radial-gradient(30% 40% at 52% 86%, color-mix(in oklab, var(--accent) 8%, transparent), transparent 70%);
+  filter: blur(26px);
+  pointer-events: none;
+  animation: heroDrift 20s var(--ease-apple) infinite alternate;
+  will-change: transform;
+}
+@keyframes heroDrift {
+  from { transform: translate3d(-2%, -1%, 0) scale(1); }
+  to   { transform: translate3d(3%, 2.5%, 0) scale(1.09); }
+}
+
+/* ── Page-enter — every routed page fades + lifts in on navigation, giving the
+   whole app a buttery transition between screens (PageShell + DetailShell) ── */
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+.page-container,
+.k-enter {
+  animation: pageEnter 0.5s var(--ease-expo) both;
 }
 
 /* Respect reduced motion — hide hero video, pause marquee */
@@ -772,4 +808,244 @@ h1, h2, h3, h4, .heading {
   justify-content: center;
   color: var(--text-secondary);
   font-family: var(--font-heading-stack);
+}
+
+/* ── Skeleton ── shimmering placeholder for perceived-perf loading ── */
+@keyframes kShimmer {
+  100% { transform: translateX(100%); }
+}
+.k-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface-elevated);
+  border-radius: var(--r-sm);
+}
+.k-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklch, var(--fg) 7%, transparent),
+    transparent
+  );
+  animation: kShimmer 1.4s var(--ease-apple) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .k-skeleton::after { animation: none; }
+}
+
+/* ── Horizontal-scroll wrapper for wide tables on narrow screens ── */
+.k-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.k-table-wrap > table { min-width: 360px; }
+
+/* ═══ INTERACTIVE COMPONENTS — adapted from Aceternity UI patterns,
+   re-expressed in pure CSS + the token system (no framer-motion) ═══ */
+
+/* ── Range slider ── native <input type=range>, accent fill via --val-pct ── */
+.k-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: linear-gradient(
+    90deg,
+    var(--accent) 0 var(--val-pct, 0%),
+    var(--surface-elevated) var(--val-pct, 0%) 100%
+  );
+  outline: none;
+  cursor: pointer;
+}
+.k-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--r-pill);
+  background: var(--fg);
+  border: 3px solid var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 22%, transparent), 0 2px 6px rgba(0,0,0,0.4);
+  transition: transform var(--duration-fast) var(--ease-expo);
+}
+.k-range::-webkit-slider-thumb:hover { transform: scale(1.14); }
+.k-range:active::-webkit-slider-thumb { transform: scale(1.22); }
+.k-range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--fg);
+  border: 3px solid var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 22%, transparent);
+}
+.k-range:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+
+/* ── Segmented tabs ── sliding accent indicator under the active tab ── */
+.k-segmented {
+  position: relative;
+  display: inline-flex;
+  gap: 2px;
+  padding: 4px;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.k-segmented::-webkit-scrollbar { display: none; }
+.k-segmented-thumb {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  height: calc(100% - 8px);
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  transition: transform var(--duration-normal) var(--ease-expo), width var(--duration-normal) var(--ease-expo);
+}
+.k-segmented-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 8px 16px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: var(--font-heading-stack);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  transition: color var(--duration-normal) var(--ease-expo);
+}
+.k-segmented-tab[data-active="true"] { color: var(--bg); }
+@media (prefers-reduced-motion: reduce) {
+  .k-segmented-thumb { transition: none; }
+}
+
+/* ── Spotlight card ── accent glow follows the cursor (glow is a -1 layer,
+   so it sits above the card surface but under the content) ── */
+.k-spotlight {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.k-spotlight-glow {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    340px circle at var(--mx, 50%) var(--my, 50%),
+    var(--spot-color, color-mix(in oklch, var(--accent) 22%, transparent)),
+    transparent 60%
+  );
+  transition: opacity var(--duration-normal) var(--ease-apple);
+}
+.k-spotlight:hover .k-spotlight-glow { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .k-spotlight-glow { transition: none; }
+}
+
+/* ── Shine button ── one-shot sheen sweep across a CTA on hover ── */
+.btn-shine { position: relative; overflow: hidden; }
+.btn-shine::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 45%;
+  height: 100%;
+  background: linear-gradient(100deg, transparent, color-mix(in oklch, white 55%, transparent), transparent);
+  transform: translateX(-200%) skewX(-18deg);
+  pointer-events: none;
+}
+.btn-shine:hover::after { animation: btnShine 0.85s var(--ease-apple); }
+@keyframes btnShine { to { transform: translateX(420%) skewX(-18deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .btn-shine:hover::after { animation: none; }
+}
+
+/* ═══ REFERENCE-UI FOUNDATION — wordmark, keyword highlight, rail label,
+   glow ring. Drama pulled from NUORBIT / AgentAI / Stoicism, token-driven. ═══ */
+
+/* ── Wordmark ── oversized letter-spaced display title (NUORBIT) ── */
+.k-wordmark {
+  font-family: var(--font-display);
+  font-weight: 600;
+  text-transform: uppercase;
+  line-height: 0.9;
+  letter-spacing: 0.16em;
+  /* compensate trailing tracking so the block stays optically centered */
+  text-indent: 0.16em;
+}
+
+/* ── Keyword highlight ── accent word inside a plain statement (AgentAI) ── */
+.k-hl { color: var(--accent); }
+.k-hl-serif {
+  font-family: var(--font-accent);
+  font-style: italic;
+  font-weight: 500;
+  color: var(--accent);
+  letter-spacing: -0.01em;
+}
+
+/* ── Rail label ── rotated micro-label pinned to a section edge (Stoicism) ── */
+.k-rail {
+  position: absolute;
+  top: 50%;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg) translateY(50%);
+  transform-origin: center;
+  font-family: var(--font-heading-stack);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.k-rail.left { left: clamp(8px, 2vw, 24px); }
+.k-rail.right { right: clamp(8px, 2vw, 24px); transform: rotate(0deg) translateY(-50%); }
+
+/* ── Glow ring ── thin accent arc sweeping a circle (NUORBIT portal) ── */
+.glow-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid color-mix(in oklch, var(--accent) 22%, transparent);
+  box-shadow: var(--glow-soft), inset 0 0 70px color-mix(in oklch, var(--accent) 7%, transparent);
+  pointer-events: none;
+}
+.glow-ring::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0 58%, color-mix(in oklch, var(--accent) 75%, transparent) 82%, transparent 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  animation: ringSpin 20s linear infinite;
+  will-change: transform;
+}
+@keyframes ringSpin { to { transform: rotate(360deg); } }
+
+/* ── Glow utilities ── */
+.k-glow { box-shadow: var(--glow-accent); }
+.k-glow-text { text-shadow: 0 0 24px color-mix(in oklch, var(--accent) 40%, transparent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .glow-ring::before { animation: none; }
 }

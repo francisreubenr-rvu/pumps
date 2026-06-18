@@ -1,9 +1,12 @@
 "use client"
 
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { AppNav } from "@/components/layout/nav"
+import { OrbitNav } from "@/components/modes/orbit"
+import { Reveal } from "@/components/ui/motion"
+import { Hl } from "@/components/ui/statement"
 import { useMode, type Mode } from "@/lib/mode-context"
-import { Check } from "lucide-react"
 
 const MODES: { id: Mode; label: string; tagline: string; description: string; quote: string; color: string }[] = [
   {
@@ -51,6 +54,11 @@ const MODES: { id: Mode; label: string; tagline: string; description: string; qu
 export default function ModesPage() {
   const { mode, setMode } = useMode()
   const router = useRouter()
+  // Which mode the orbit is previewing (defaults to the live one).
+  const [preview, setPreview] = useState<Mode>(mode)
+
+  const current = MODES.find(m => m.id === preview) ?? MODES[0]
+  const isLive = preview === mode
 
   async function activate(id: Mode) {
     await setMode(id)
@@ -60,73 +68,69 @@ export default function ModesPage() {
   return (
     <div style={{ backgroundColor: "var(--bg)", minHeight: "100vh" }}>
       <AppNav />
-      <main style={{ maxWidth: 960, margin: "0 auto", padding: "40px 24px" }}>
-        <div style={{ marginBottom: 48 }}>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(36px, 5vw, 56px)", fontWeight: 600, letterSpacing: "-0.02em", textTransform: "uppercase", color: "var(--fg)", lineHeight: 1 }}>
-            Training Mode
-          </h1>
-          <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--accent)", marginTop: 4 }}>
-            Choose your mindset. Shape your training.
-          </p>
-        </div>
+      <main className="k-enter" style={{ position: "relative", maxWidth: 960, margin: "0 auto", padding: "clamp(32px, 6vh, 56px) clamp(16px, 4vw, 24px)" }}>
+        <span className="k-rail left" aria-hidden="true">CHOOSE YOUR ARC</span>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 2 }}>
-          {MODES.map(m => {
-            const isActive = mode === m.id
-            return (
-              <div
-                key={m.id}
-                className="card-surface"
-                style={{
-                  padding: 28,
-                  border: isActive ? `2px solid ${m.color}` : "1px solid var(--border)",
-                  position: "relative",
-                  transition: "border-color 150ms",
-                }}
-              >
-                {isActive && (
-                  <div style={{ position: "absolute", top: 16, right: 16, width: 20, height: 20, background: m.color, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <Check size={12} style={{ color: "var(--bg)" }} aria-hidden="true" />
-                  </div>
-                )}
+        <Reveal variant="fade" duration={800}>
+          <div style={{ textAlign: "center", marginBottom: "clamp(28px, 5vh, 44px)" }}>
+            <h1 className="k-glow-text" style={{ fontFamily: "var(--font-display)", fontSize: "clamp(40px, 7vw, 64px)", fontWeight: 600, letterSpacing: "-0.01em", textTransform: "uppercase", color: "var(--fg)", lineHeight: 1 }}>
+              Training <Hl serif>mode</Hl>
+            </h1>
+            <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--accent)", marginTop: 8 }}>
+              Choose your mindset. Shape your training.
+            </p>
+          </div>
+        </Reveal>
 
-                {/* Color swatch */}
-                <div style={{ width: 32, height: 4, background: m.color, marginBottom: 20 }} />
+        {/* Orbit picker */}
+        <Reveal variant="scale" delay={120} duration={800}>
+          <OrbitNav
+            items={MODES.map(m => ({ id: m.id, label: m.label.replace(" MODE", "").replace(" ARC", ""), color: m.color }))}
+            activeId={preview}
+            onSelect={(id) => setPreview(id as Mode)}
+            size={460}
+          />
+        </Reveal>
 
-                <h2 style={{ fontFamily: "var(--font-display)", fontSize: 28, fontWeight: 600, letterSpacing: "-0.02em", textTransform: "uppercase", color: isActive ? m.color : "var(--fg)", lineHeight: 1, marginBottom: 6 }}>
-                  {m.label}
-                </h2>
-                <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: m.color, marginBottom: 12 }}>
-                  {m.tagline}
-                </p>
-                <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 16 }}>
-                  {m.description}
-                </p>
-                <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontStyle: "italic", color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: 24, borderLeft: `2px solid ${m.color}`, paddingLeft: 12 }}>
-                  &ldquo;{m.quote}&rdquo;
-                </p>
-
-                <button
-                  type="button"
-                  onClick={() => activate(m.id)}
-                  disabled={isActive}
-                  style={{
-                    width: "100%",
-                    padding: "12px 0",
-                    fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
-                    background: isActive ? m.color : "transparent",
-                    color: isActive ? "var(--bg)" : m.color,
-                    border: `1px solid ${m.color}`,
-                    cursor: isActive ? "default" : "pointer",
-                    transition: "all 100ms",
-                  }}
-                >
-                  {isActive ? "Active" : "Activate"}
-                </button>
-              </div>
-            )
-          })}
-        </div>
+        {/* Detail panel for the previewed mode */}
+        <Reveal variant="up" delay={200} duration={700}>
+          <div
+            className="card-elevated card-pad"
+            style={{ maxWidth: 560, margin: "clamp(28px, 5vh, 44px) auto 0", textAlign: "center", borderTop: `2px solid ${current.color}` }}
+          >
+            <div aria-hidden="true" style={{ width: 36, height: 4, background: current.color, margin: "0 auto 18px", borderRadius: "var(--r-pill)", boxShadow: `0 0 18px ${current.color}` }} />
+            <h2 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(30px, 5vw, 44px)", fontWeight: 600, letterSpacing: "-0.02em", textTransform: "uppercase", color: current.color, lineHeight: 1 }}>
+              {current.label}
+            </h2>
+            <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: current.color, marginTop: 8 }}>
+              {current.tagline}
+            </p>
+            <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.65, marginTop: 16, maxWidth: 420, marginLeft: "auto", marginRight: "auto" }}>
+              {current.description}
+            </p>
+            <p style={{ fontFamily: "var(--font-accent)", fontStyle: "italic", fontSize: "clamp(15px, 2.4vw, 19px)", color: "var(--fg)", lineHeight: 1.5, margin: "20px auto 24px", maxWidth: 440 }}>
+              &ldquo;{current.quote}&rdquo;
+            </p>
+            <button
+              type="button"
+              onClick={() => activate(current.id)}
+              disabled={isLive}
+              style={{
+                padding: "13px 36px",
+                fontFamily: "var(--font-heading-stack)", fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
+                background: isLive ? current.color : "transparent",
+                color: isLive ? "var(--bg)" : current.color,
+                border: `1px solid ${current.color}`,
+                borderRadius: "var(--r-pill)",
+                cursor: isLive ? "default" : "pointer",
+                boxShadow: isLive ? `0 0 24px color-mix(in oklch, ${current.color} 40%, transparent)` : "none",
+                transition: "all var(--duration-normal) var(--ease-expo)",
+              }}
+            >
+              {isLive ? "Active mode" : "Activate"}
+            </button>
+          </div>
+        </Reveal>
       </main>
     </div>
   )

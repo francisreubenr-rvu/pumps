@@ -12,7 +12,7 @@
 
 import { useEffect, useRef, useState, type ReactNode, type CSSProperties } from "react"
 import Link from "next/link"
-import { ChevronRight, ArrowLeft, type LucideIcon } from "lucide-react"
+import { ChevronRight, ArrowLeft, AlertTriangle, RotateCw, type LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { AppNav } from "@/components/layout/nav"
 
@@ -84,7 +84,7 @@ export function DetailShell({
   return (
     <div style={{ backgroundColor: "var(--bg)", minHeight: "100vh" }}>
       <DetailHeader backHref={backHref} crumb={crumb} trailing={trailing} />
-      <main style={{ maxWidth, margin: "0 auto", padding: "clamp(24px, 5vw, 40px) clamp(16px, 4vw, 24px)" }}>
+      <main className="k-enter" style={{ maxWidth, margin: "0 auto", padding: "clamp(24px, 5vw, 40px) clamp(16px, 4vw, 24px)" }}>
         {children}
       </main>
     </div>
@@ -418,24 +418,112 @@ export function ListRow({
   return <div className="k-list-row">{inner}</div>
 }
 
-/* ── EmptyState ── centered "nothing here yet" with optional action ── */
+/* ── EmptyState ── centered "nothing here yet" with optional icon + action ── */
 export function EmptyState({
   message,
   actionHref,
   actionLabel,
+  icon: Icon,
 }: {
   message: string
   actionHref?: string
   actionLabel?: string
+  icon?: LucideIcon
 }) {
   return (
-    <div style={{ textAlign: "center", padding: "20px 0" }}>
-      <p className="k-row-sub">{message}</p>
+    <div style={{ textAlign: "center", padding: "32px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+      {Icon && (
+        <span
+          aria-hidden="true"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 44,
+            height: 44,
+            borderRadius: "var(--r-pill)",
+            background: "var(--surface-elevated)",
+            color: "var(--text-secondary)",
+          }}
+        >
+          <Icon size={20} />
+        </span>
+      )}
+      <p className="k-row-sub" style={{ maxWidth: 280 }}>{message}</p>
       {actionHref && actionLabel && (
-        <Link href={actionHref} className="k-link" style={{ marginTop: 8 }}>
+        <Link href={actionHref} className="k-link">
           {actionLabel}
         </Link>
       )}
+    </div>
+  )
+}
+
+/* ── ErrorState ── failure message + retry, themed (replaces ad-hoc red text) ── */
+export function ErrorState({
+  message = "Something went wrong.",
+  onRetry,
+}: {
+  message?: string
+  onRetry?: () => void
+}) {
+  return (
+    <div style={{ textAlign: "center", padding: "32px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+      <span
+        aria-hidden="true"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 44,
+          height: 44,
+          borderRadius: "var(--r-pill)",
+          background: "color-mix(in oklch, var(--accent-red) 14%, transparent)",
+          color: "var(--accent-red)",
+        }}
+      >
+        <AlertTriangle size={20} />
+      </span>
+      <p className="k-row-sub" style={{ maxWidth: 300, color: "var(--text-secondary)" }}>{message}</p>
+      {onRetry && (
+        <button onClick={onRetry} className="btn-outline" style={{ fontSize: 11, padding: "8px 16px" }}>
+          <RotateCw size={12} aria-hidden="true" /> Retry
+        </button>
+      )}
+    </div>
+  )
+}
+
+/* ── Skeleton ── shimmering placeholder block; compose for any loading shape ── */
+export function Skeleton({
+  width,
+  height = 14,
+  radius,
+  className,
+  style,
+}: {
+  width?: number | string
+  height?: number | string
+  radius?: number | string
+  className?: string
+  style?: CSSProperties
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn("k-skeleton", className)}
+      style={{ display: "block", width: width ?? "100%", height, borderRadius: radius, ...style }}
+    />
+  )
+}
+
+/* ── SkeletonRows ── N stacked text-line skeletons (lists, tables) ── */
+export function SkeletonRows({ rows = 5, gap = 12 }: { rows?: number; gap?: number }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap }} aria-busy="true" aria-label="Loading">
+      {Array.from({ length: rows }).map((_, i) => (
+        <Skeleton key={i} height={16} width={`${88 - (i % 4) * 12}%`} />
+      ))}
     </div>
   )
 }

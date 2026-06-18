@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next"
-import { Saira, Teko } from "next/font/google"
+import { Saira, Teko, Newsreader } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import { ModeProvider } from "@/lib/mode-context"
@@ -19,6 +19,15 @@ const teko = Teko({
   variable: "--font-teko",
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
+})
+
+// Elegant serif used ONLY for italic emphasis words (the Verdant/Stoicism move).
+const newsreader = Newsreader({
+  variable: "--font-newsreader",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  style: ["italic", "normal"],
   display: "swap",
 })
 
@@ -51,7 +60,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${saira.variable} ${teko.variable} dark h-full antialiased`} >
+    <html lang="en" className={`${saira.variable} ${teko.variable} ${newsreader.variable} dark h-full antialiased`} >
       <head>
         <link rel="preconnect" href="https://jchfbpzucylthmgthktj.supabase.co" />
       </head>

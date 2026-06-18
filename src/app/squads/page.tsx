@@ -9,6 +9,7 @@ import { useUser } from "@/lib/queries/auth"
 import { useSquads } from "@/lib/queries/squads"
 import { queryKeys } from "@/lib/queries/keys"
 import { AppNav } from "@/components/layout/nav"
+import { SkeletonRows, ErrorState } from "@/components/ui/kinetic"
 import { Users, Plus, LogIn, Globe } from "lucide-react"
 
 export default function SquadsPage() {
@@ -126,11 +127,10 @@ export default function SquadsPage() {
             My Squads
           </h2>
           {loading ? (
-            <p style={{ color: "var(--text-secondary)", fontFamily: "var(--font-heading-stack)", fontSize: 12 }}>Loading…</p>
+            <SkeletonRows rows={4} />
           ) : loadError ? (
             <div className="card-surface" style={{ padding: 20 }}>
-              <p style={{ color: "var(--accent-red)", fontFamily: "var(--font-heading-stack)", fontSize: 12, marginBottom: 8 }}>{loadError}</p>
-              <button onClick={() => refetch()} className="btn-outline" style={{ fontSize: 11, padding: "8px 16px" }}>Retry</button>
+              <ErrorState message={loadError} onRetry={() => refetch()} />
             </div>
           ) : mySquads.length === 0 ? (
             <div className="card-surface" style={{ padding: 28, textAlign: "center" }}>

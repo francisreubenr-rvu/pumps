@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { AppNav } from "@/components/layout/nav"
 import { Trophy } from "lucide-react"
+import { PageShell, PageTitle, Card, EmptyState, SkeletonRows, Skeleton } from "@/components/ui/kinetic"
 
 export default function AthletesPage() {
   const [user, setUser] = useState<any>(null)
@@ -14,6 +14,7 @@ export default function AthletesPage() {
   const [selectedExercise, setSelectedExercise] = useState("")
   const [userBest, setUserBest] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
+  const [benchLoading, setBenchLoading] = useState(true)
   const router = useRouter()
 
   useEffect(() => {
@@ -31,6 +32,7 @@ export default function AthletesPage() {
       const names: string[] = Array.from(new Set((data ?? []).map((b: any) => b.athlete_name as string)))
       setAthletes(names)
       if (names.length > 0) setSelectedAthlete(names[0])
+      setBenchLoading(false)
     })
   }, [])
 
@@ -72,18 +74,16 @@ export default function AthletesPage() {
   }
 
   return (
-    <div style={{ backgroundColor: "var(--bg)", minHeight: "100vh" }}>
-      <AppNav />
-      <main style={{ maxWidth: 760, margin: "0 auto", padding: "40px 24px" }}>
-        <div style={{ marginBottom: 40 }}>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(36px, 5vw, 56px)", fontWeight: 600, letterSpacing: "-0.02em", textTransform: "uppercase", color: "var(--fg)", lineHeight: 1 }}>
-            Benchmark
-          </h1>
-          <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--accent)", marginTop: 4 }}>
-            Compare vs Elite Athletes
-          </p>
-        </div>
+    <PageShell>
+      <div style={{ maxWidth: 760, margin: "0 auto" }}>
+        <PageTitle title="Benchmark" eyebrow="Compare vs elite athletes" />
 
+        {benchLoading ? (
+          <Card><SkeletonRows rows={5} /></Card>
+        ) : athletes.length === 0 ? (
+          <Card><EmptyState icon={Trophy} message="No athlete benchmarks available yet." /></Card>
+        ) : (
+        <>
         {/* Selectors */}
         <div className="card-surface" style={{ padding: 24, marginBottom: 24 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
@@ -137,7 +137,7 @@ export default function AthletesPage() {
               <div className="card-elevated" style={{ padding: 20 }}>
                 <span className="label-sm" style={{ display: "block", marginBottom: 8 }}>Your Best</span>
                 {loading ? (
-                  <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 14, color: "var(--text-secondary)" }}>Loading…</p>
+                  <Skeleton width={120} height={48} radius={"var(--r-sm)"} />
                 ) : userBest != null ? (
                   <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
                     <span style={{ fontFamily: "var(--font-display)", fontSize: 48, fontWeight: 600, color: "var(--accent)", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{userBest}</span>
@@ -206,7 +206,9 @@ export default function AthletesPage() {
             </div>
           </div>
         )}
-      </main>
-    </div>
+        </>
+        )}
+      </div>
+    </PageShell>
   )
 }

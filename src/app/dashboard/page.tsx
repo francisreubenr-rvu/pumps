@@ -14,13 +14,15 @@ import {
   Badge,
   ListRow,
   EmptyState,
+  Skeleton,
 } from "@/components/ui/kinetic"
+import { Reveal } from "@/components/ui/motion"
 
 // recharts is heavy — load it on demand so it stays out of the dashboard's
 // initial JS (the chart is one of several sections).
 const BarSeriesChart = dynamic(() => import("@/components/charts/bar-series-chart"), {
   ssr: false,
-  loading: () => <div style={{ height: 200 }} aria-hidden="true" />,
+  loading: () => <Skeleton height={200} radius={"var(--r-lg)"} />,
 })
 
 const READINESS_COLOR: Record<string, string> = {
@@ -121,6 +123,7 @@ export default function DashboardPage() {
       )}
 
       {/* Volume chart */}
+      <Reveal variant="up">
       <Card className="k-section">
         <SectionHeader
           title="Volume history"
@@ -136,8 +139,10 @@ export default function DashboardPage() {
           />
         )}
       </Card>
+      </Reveal>
 
       {/* Recent + competitions */}
+      <Reveal variant="up">
       <div className="grid-2col k-section">
         <Card>
           <SectionHeader title="Recent workouts" viewAllHref="/workouts" />
@@ -186,8 +191,10 @@ export default function DashboardPage() {
           )}
         </Card>
       </div>
+      </Reveal>
 
       {/* Quick actions */}
+      <Reveal variant="up">
       <div className="k-quick-grid">
         {quickActions.map(a => (
           <Card key={a.href} href={a.href} interactive padded={false} style={{ padding: "20px 16px", display: "flex", alignItems: "center", gap: 10 }}>
@@ -196,6 +203,7 @@ export default function DashboardPage() {
           </Card>
         ))}
       </div>
+      </Reveal>
     </PageShell>
   )
 }

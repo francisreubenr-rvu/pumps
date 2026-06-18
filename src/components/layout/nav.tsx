@@ -65,14 +65,14 @@ export function AppNav() {
                 </Link>
               )
             })}
-            <Link href="/workouts/new" className="btn-primary" style={{ marginLeft: 12, fontSize: 11, padding: "8px 14px" }}>
+            <Link href="/workouts/new" className="btn-primary btn-shine" style={{ marginLeft: 12, fontSize: 11, padding: "8px 14px" }}>
               <Plus size={12} aria-hidden="true" /> LOG
             </Link>
           </nav>
 
           {/* Mobile controls */}
           <div className="nav-mobile" style={{ alignItems: "center", gap: 12 }}>
-            <Link href="/workouts/new" className="btn-primary" style={{ fontSize: 11, padding: "8px 12px" }}>
+            <Link href="/workouts/new" className="btn-primary btn-shine" style={{ fontSize: 11, padding: "8px 12px" }}>
               <Plus size={12} aria-hidden="true" /> LOG
             </Link>
             <button
@@ -146,7 +146,7 @@ export function AppNav() {
 
           <Link
             href="/workouts/new"
-            className="btn-primary"
+            className="btn-primary btn-shine"
             style={{ fontSize: 14, padding: "16px 0", width: "100%", justifyContent: "center", marginTop: 24, gap: 8 }}
           >
             <Plus size={16} aria-hidden="true" /> LOG WORKOUT

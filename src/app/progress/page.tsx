@@ -6,10 +6,11 @@ import { useRouter } from "next/navigation"
 import { Dumbbell, TrendingUp, Flame, PieChart } from "lucide-react"
 import { useUser } from "@/lib/queries/auth"
 import { useProgressData } from "@/lib/queries/progress"
-import { PageShell, PageTitle, Card, EmptyState } from "@/components/ui/kinetic"
+import { PageShell, PageTitle, Card, EmptyState, Skeleton } from "@/components/ui/kinetic"
+import { SegmentedTabs } from "@/components/ui/interactive"
 
 // recharts loaded on demand so it stays out of the initial route JS.
-const chartLoading = () => <div style={{ height: 300 }} aria-hidden="true" />
+const chartLoading = () => <Skeleton height={300} radius={"var(--r-lg)"} />
 const LineSeriesChart = dynamic(() => import("@/components/charts/line-series-chart"), { ssr: false, loading: chartLoading })
 const BarSeriesChart = dynamic(() => import("@/components/charts/bar-series-chart"), { ssr: false, loading: chartLoading })
 
@@ -62,33 +63,17 @@ export default function ProgressPage() {
     <PageShell>
       <PageTitle title="Progress" eyebrow="Strength over time" />
 
-      <div className="k-section" style={{ display: "flex", gap: 2 }}>
-        {[{ k: "weight" as const, l: "MAX WEIGHT", icon: Dumbbell }, { k: "e1rm" as const, l: "EST. 1RM", icon: Flame }, { k: "volume" as const, l: "WEEKLY VOLUME", icon: TrendingUp }, { k: "split" as const, l: "MUSCLE SPLIT", icon: PieChart }].map(t => {
-          const active = tab === t.k
-          return (
-            <button
-              key={t.k}
-              onClick={() => setTab(t.k)}
-              style={{
-                fontFamily: "var(--font-heading-stack)",
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                padding: "8px 16px",
-                background: active ? "var(--accent)" : "var(--surface-elevated)",
-                color: active ? "var(--bg)" : "var(--text-secondary)",
-                border: "1px solid var(--border)",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              <t.icon size={14} /> {t.l}
-            </button>
-          )
-        })}
+      <div className="k-section">
+        <SegmentedTabs<"weight" | "e1rm" | "volume" | "split">
+          value={tab}
+          onChange={setTab}
+          tabs={[
+            { key: "weight", label: "Max weight", icon: Dumbbell },
+            { key: "e1rm", label: "Est. 1RM", icon: Flame },
+            { key: "volume", label: "Weekly volume", icon: TrendingUp },
+            { key: "split", label: "Muscle split", icon: PieChart },
+          ]}
+        />
       </div>
 
       {tab === "weight" && (

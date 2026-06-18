@@ -8,7 +8,7 @@ import { useUser } from "@/lib/queries/auth"
 import { useMealLogs } from "@/lib/queries/nutrition"
 import { mealTotals } from "@/lib/metrics"
 import { MacroRing } from "@/components/nutrition/macro-ring"
-import { PageShell, PageTitle, Card, EmptyState } from "@/components/ui/kinetic"
+import { PageShell, PageTitle, Card, EmptyState, SkeletonRows } from "@/components/ui/kinetic"
 
 const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"] as const
 
@@ -75,7 +75,7 @@ export default function NutritionPage() {
       <Card>
         <h3 className="k-title" style={{ marginBottom: 20 }}>Meals</h3>
         {loading ? (
-          <EmptyState message="Loading…" />
+          <SkeletonRows rows={4} />
         ) : logs.length === 0 ? (
           <EmptyState message="Nothing logged today — scan a meal to get started." actionHref="/nutrition/scan" actionLabel="Scan food" />
         ) : (

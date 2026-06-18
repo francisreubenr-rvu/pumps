@@ -1,33 +1,15 @@
 "use client"
 
 import Link from "next/link"
-import dynamic from "next/dynamic"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { Dumbbell, BarChart3, Trophy, Swords, Zap, Users, ArrowRight, ChevronDown } from "lucide-react"
-
-const DumbbellCanvas = dynamic(
-  () => import("@/components/landing/dumbbell-canvas").then((m) => m.DumbbellCanvas),
-  { ssr: false, loading: () => null }
-)
-
-/* ─── Scroll progress hook ─── */
-function useScrollProgress(ref: React.RefObject<HTMLElement | null>) {
-  const [progress, setProgress] = useState(0)
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const update = () => {
-      const rect = el.getBoundingClientRect()
-      const total = el.offsetHeight - window.innerHeight
-      const scrolled = -rect.top
-      setProgress(Math.max(0, Math.min(1, scrolled / total)))
-    }
-    window.addEventListener("scroll", update, { passive: true })
-    update()
-    return () => window.removeEventListener("scroll", update)
-  }, [ref])
-  return progress
-}
+import { Reveal } from "@/components/ui/motion"
+import { GlowRing } from "@/components/landing/glow-ring"
+import { StatBar } from "@/components/ui/stat-bar"
+import { Statement, Hl } from "@/components/ui/statement"
+import { GlassFeatureCard } from "@/components/landing/glass-feature-card"
+import { NodeDiagram, GlowChart, Radar } from "@/components/landing/feature-visuals"
+import { Testimonial } from "@/components/landing/testimonial"
 
 /* ─── Mobile breakpoint hook (mount-safe — no SSR hydration mismatch) ─── */
 function useIsMobile(bp = 768) {
@@ -41,165 +23,210 @@ function useIsMobile(bp = 768) {
   return mobile
 }
 
-/* ─── Fade-in-on-scroll utility ─── */
-function FadeSection({ children, delay = 0, style }: { children: React.ReactNode; delay?: number; style?: React.CSSProperties }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const [visible, setVisible] = useState(false)
+/* ─── Scrolled-past-threshold flag — drives the nav pill shrink (Verdant) ─── */
+function useScrolled(threshold = 24) {
+  const [scrolled, setScrolled] = useState(false)
   useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setVisible(true) }, { threshold: 0.12 })
-    obs.observe(el)
-    return () => obs.disconnect()
-  }, [])
-  return (
-    <div
-      ref={ref}
-      style={{
-        opacity: visible ? 1 : 0,
-        transform: visible ? "translateY(0)" : "translateY(32px)",
-        transition: `opacity 0.8s ease ${delay}ms, transform 0.8s ease ${delay}ms`,
-        ...style,
-      }}
-    >
-      {children}
-    </div>
-  )
+    const update = () => setScrolled(window.scrollY > threshold)
+    update()
+    window.addEventListener("scroll", update, { passive: true })
+    return () => window.removeEventListener("scroll", update)
+  }, [threshold])
+  return scrolled
 }
 
 export default function LandingPage() {
-  const heroRef = useRef<HTMLElement>(null)
-  const progress = useScrollProgress(heroRef as React.RefObject<HTMLElement>)
-  const isMobile = useIsMobile()
   /* Thin-phone flag (~360px) — reuses the existing mount-safe hook, no duplication */
   const isThin = useIsMobile(480)
+  const scrolled = useScrolled()
 
   return (
     <div style={{ backgroundColor: "transparent", overflowX: "hidden" }}>
 
       {/* ══════════════════════════════════════
-          TOP NAV — frosted glass
+          TOP NAV — floating glass pill, shrinks on scroll (Verdant)
       ══════════════════════════════════════ */}
-      <nav style={{
+      <div style={{
         position: "fixed", top: 0, left: 0, right: 0, zIndex: 90,
-        height: 56,
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 clamp(20px, 5vw, 48px)",
-        background: "rgba(0,0,0,0.7)",
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
-        paddingTop: "env(safe-area-inset-top)",
+        display: "flex", justifyContent: "center",
+        padding: scrolled ? "10px clamp(12px, 4vw, 24px)" : "clamp(14px, 2.4vh, 22px) clamp(12px, 4vw, 24px)",
+        paddingTop: scrolled ? "max(10px, env(safe-area-inset-top))" : "max(clamp(14px, 2.4vh, 22px), env(safe-area-inset-top))",
+        transition: "padding var(--duration-normal) var(--ease-expo)",
+        pointerEvents: "none",
       }}>
-        <span style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em", textTransform: "uppercase", color: "var(--fg)" }}>
-          PUMPS
-        </span>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <Link href="/auth/login" style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-secondary)", textDecoration: "none", padding: "8px 16px" }}>
-            Sign In
-          </Link>
-          <Link href="/auth/login" className="btn-primary" style={{ fontSize: 12, padding: "8px 20px" }}>
-            Start Free
-          </Link>
-        </div>
-      </nav>
+        <nav style={{
+          pointerEvents: "auto",
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+          width: "100%",
+          maxWidth: scrolled ? 720 : 1100,
+          height: scrolled ? 52 : 60,
+          padding: "0 8px 0 clamp(16px, 2vw, 22px)",
+          borderRadius: "var(--r-pill)",
+          background: scrolled ? "color-mix(in oklch, var(--bg) 72%, transparent)" : "rgba(0,0,0,0.45)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          border: "1px solid color-mix(in oklch, var(--accent) 12%, rgba(255,255,255,0.08))",
+          boxShadow: scrolled ? "var(--glow-soft)" : "none",
+          transition: "max-width var(--duration-normal) var(--ease-expo), height var(--duration-normal) var(--ease-expo), background var(--duration-normal) var(--ease-expo), box-shadow var(--duration-normal) var(--ease-expo)",
+        }}>
+          <span style={{ fontFamily: "var(--font-display)", fontSize: scrolled ? 19 : 22, fontWeight: 600, letterSpacing: "-0.02em", textTransform: "uppercase", color: "var(--fg)", transition: "font-size var(--duration-normal) var(--ease-expo)" }}>
+            PUMPS
+          </span>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <Link href="/auth/login" style={{ fontFamily: "var(--font-heading-stack)", fontSize: 12, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-secondary)", textDecoration: "none", padding: "8px 14px" }}>
+              Sign In
+            </Link>
+            <Link href="/auth/login" className="btn-primary btn-shine" style={{ fontSize: 12, padding: "8px 18px", borderRadius: "var(--r-pill)" }}>
+              Start Free
+            </Link>
+          </div>
+        </nav>
+      </div>
 
       {/* ══════════════════════════════════════
-          HERO — 3D DUMBBELL SCROLL SECTION
+          HERO — clean animated title (no WebGL)
       ══════════════════════════════════════ */}
       <section
-        ref={heroRef}
-        style={{ height: isMobile ? "170vh" : "200vh", position: "relative" }}
+        style={{
+          position: "relative",
+          minHeight: "100dvh",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          textAlign: "center",
+          overflow: "hidden",
+          padding: "clamp(96px, 14vh, 140px) clamp(20px, 5vw, 48px) clamp(48px, 9vh, 90px)",
+        }}
         aria-label="Hero"
       >
-        {/* Sticky canvas container */}
-        <div style={{
-          position: "sticky", top: 0,
-          height: "100dvh", width: "100%",
-          overflow: "hidden",
-          display: "flex", flexDirection: "column",
-        }}>
-          {/* Ambient gradient behind the scene — theme-neutral so it reads across all modes,
-              with the active accent providing a faint tint */}
-          <div aria-hidden="true" style={{
-            position: "absolute", inset: 0,
-            background: `
-              radial-gradient(ellipse 70% 60% at 50% 28%, color-mix(in oklab, var(--accent) 8%, transparent) 0%, transparent 62%),
-              radial-gradient(ellipse 55% 50% at 18% 82%, rgba(255,255,255,0.04) 0%, transparent 60%)
-            `,
-          }} />
+        {/* Drifting aurora behind the title */}
+        <div aria-hidden="true" className="hero-aurora" />
+        {/* Glow ring framing the wordmark (NUORBIT portal) */}
+        <GlowRing
+          size={isThin ? 320 : 600}
+          style={{ top: "calc(50% - clamp(20px, 8vh, 80px))", left: "50%", transform: "translate(-50%, -50%)" }}
+        />
 
-          {/* Big static PUMPS title */}
-          <div style={{
-            position: "absolute",
-            top: "clamp(70px, 12vh, 110px)",
-            left: 0, right: 0,
-            textAlign: "center",
-            zIndex: 10,
-            opacity: progress < 0.05 ? 1 : Math.max(0, 1 - (progress - 0.05) / 0.08),
-            transition: "opacity 100ms",
-            pointerEvents: "none",
-          }}>
-            <h1 style={{
-              fontFamily: "var(--font-display)",
-              fontSize: "clamp(72px, 15vw, 160px)",
+        {/* Rotated edge rails (Stoicism / S'Watch) */}
+        <span className="k-rail left" aria-hidden="true">EST. UNDERGROUND</span>
+        <span className="k-rail right" aria-hidden="true">TRACK · COMPETE · DOMINATE</span>
+
+        <div style={{ position: "relative", maxWidth: 940 }}>
+          <Reveal variant="fade" duration={800}>
+            <p style={{
+              fontFamily: "var(--font-heading-stack)",
+              fontSize: "clamp(11px, 1.4vw, 14px)",
               fontWeight: 600,
-              letterSpacing: "-0.02em",
+              letterSpacing: "0.24em",
               textTransform: "uppercase",
-              lineHeight: 1,
-              background: "linear-gradient(180deg, #f5f5f7 0%, rgba(245,245,247,0.6) 100%)",
+              color: "var(--accent)",
+              marginBottom: "clamp(16px, 3vh, 24px)",
+            }}>
+              GYM JOURNALING — KINETIC EDITION
+            </p>
+          </Reveal>
+
+          <Reveal variant="scale" delay={200} duration={900}>
+            <h1 className="k-wordmark k-glow-text" style={{
+              fontSize: "clamp(80px, 19vw, 220px)",
+              letterSpacing: "clamp(0.1em, 2vw, 0.22em)",
+              background: "linear-gradient(180deg, #f5f5f7 0%, rgba(245,245,247,0.5) 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               backgroundClip: "text",
             }}>
               PUMPS
             </h1>
+          </Reveal>
+
+          <Reveal variant="up" delay={300} duration={900}>
             <p style={{
               fontFamily: "var(--font-heading-stack)",
-              fontSize: "clamp(11px, 1.4vw, 14px)",
-              fontWeight: 600,
-              letterSpacing: "0.22em",
-              textTransform: "uppercase",
+              fontSize: "clamp(16px, 2.4vw, 24px)",
+              fontWeight: 500,
+              letterSpacing: "0.01em",
               color: "var(--text-secondary)",
-              marginTop: 8,
+              lineHeight: 1.45,
+              maxWidth: 580,
+              margin: "clamp(18px, 3vh, 28px) auto 0",
             }}>
-              GYM JOURNALING — KINETIC EDITION
+              Track every rep. Compete live. Get <Hl serif>relentless</Hl>.
             </p>
-          </div>
+          </Reveal>
 
-          {/* 3D Canvas */}
-          <div style={{ flex: 1, position: "relative" }}>
-            <DumbbellCanvas progress={progress} />
-          </div>
-
-          {/* Bottom scroll cue */}
-          <div style={{
-            position: "absolute",
-            bottom: 24,
-            left: "50%",
-            transform: "translateX(-50%)",
-            opacity: progress < 0.05 ? 1 : 0,
-            transition: "opacity 300ms",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 4,
-            pointerEvents: "none",
-          }}>
-            <span style={{ fontFamily: "var(--font-heading-stack)", fontSize: 9, fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--text-secondary)" }}>SCROLL</span>
-            <div style={{ animation: "floatDown 1.6s ease-in-out infinite" }}>
-              <ChevronDown size={16} color="var(--text-secondary)" />
+          <Reveal variant="up" delay={420} duration={900}>
+            <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", marginTop: "clamp(28px, 5vh, 44px)" }}>
+              <Link href="/auth/login" className="btn-primary btn-shine" style={{ fontSize: "clamp(13px, 1.5vw, 15px)", padding: "clamp(14px, 2vh, 17px) clamp(28px, 4vw, 44px)" }}>
+                Start Lifting — Free
+              </Link>
+              <Link href="/auth/login" className="btn-outline" style={{ fontSize: "clamp(13px, 1.5vw, 15px)", padding: "clamp(14px, 2vh, 17px) clamp(24px, 3.5vw, 36px)" }}>
+                Sign In
+              </Link>
             </div>
-          </div>
+          </Reveal>
 
-          {/* Bottom gradient fade to next section — trimmed so the marquee sits tight under DOMINATE */}
-          <div aria-hidden="true" style={{
-            position: "absolute",
-            bottom: 0, left: 0, right: 0,
-            height: 90,
-            background: "linear-gradient(to bottom, transparent, var(--bg))",
-            pointerEvents: "none",
-          }} />
+          <Reveal variant="up" delay={540} duration={900}>
+            <StatBar
+              stats={[
+                { value: 100, suffix: "%", label: "Underground Iron" },
+                { value: 6, label: "Motivation Modes" },
+                { value: 0, label: "Corporate Vibes" },
+              ]}
+              style={{ justifyContent: "center", marginTop: "clamp(36px, 6vh, 56px)" }}
+            />
+          </Reveal>
+        </div>
+
+        {/* Scroll cue */}
+        <div style={{
+          position: "absolute",
+          bottom: "clamp(20px, 4vh, 36px)",
+          left: "50%",
+          transform: "translateX(-50%)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 6,
+          pointerEvents: "none",
+        }}>
+          <span style={{ fontFamily: "var(--font-heading-stack)", fontSize: 9, fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--text-secondary)" }}>SCROLL</span>
+          <div style={{ animation: "floatDown 1.6s ease-in-out infinite" }}>
+            <ChevronDown size={16} color="var(--text-secondary)" />
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════
+          THREE PILLARS — scroll-reveal word band
+      ══════════════════════════════════════ */}
+      <section style={{ maxWidth: 1400, margin: "0 auto", padding: "clamp(64px, 11vh, 120px) clamp(20px, 5vw, 48px)" }}>
+        <div style={{ display: "grid", gridTemplateColumns: isThin ? "1fr" : "repeat(3, 1fr)", gap: isThin ? 28 : "clamp(20px, 4vw, 56px)" }}>
+          {[
+            { word: "TRACK.", sub: "Every rep. Every set. Every PR.", variant: "left" as const },
+            { word: "COMPETE.", sub: "Live duels. Real-time boards.", variant: "up" as const },
+            { word: "DOMINATE.", sub: "Own the leaderboard.", variant: "right" as const },
+          ].map((p, i) => (
+            <Reveal key={i} variant={p.variant} delay={i * 120} duration={800}>
+              <h2 style={{
+                fontFamily: "var(--font-display)",
+                fontSize: "clamp(40px, 6vw, 76px)",
+                fontWeight: 600,
+                letterSpacing: "-0.02em",
+                textTransform: "uppercase",
+                lineHeight: 1,
+                background: "linear-gradient(135deg, #f5f5f7 30%, var(--accent) 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}>
+                {p.word}
+              </h2>
+              <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: "clamp(12px, 1.4vw, 15px)", fontWeight: 500, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-secondary)", marginTop: 12 }}>
+                {p.sub}
+              </p>
+            </Reveal>
+          ))}
         </div>
       </section>
 
@@ -229,6 +256,19 @@ export default function LandingPage() {
       </div>
 
       {/* ══════════════════════════════════════
+          STATEMENT BAND — accent-keyword sentence (AgentAI)
+      ══════════════════════════════════════ */}
+      <section style={{ position: "relative", maxWidth: 1100, margin: "0 auto", padding: "clamp(70px, 12vh, 130px) clamp(20px, 5vw, 48px)" }}>
+        <span className="k-rail left" aria-hidden="true">PHILOSOPHY</span>
+        <Reveal variant="up" duration={900}>
+          <Statement>
+            We build for lifters who <Hl>keep score</Hl>. Every rep, every PR, every{" "}
+            <Hl serif>live duel</Hl> — logged with intent, ranked without mercy.
+          </Statement>
+        </Reveal>
+      </section>
+
+      {/* ══════════════════════════════════════
           FEATURES GRID — glassmorphism cards
       ══════════════════════════════════════ */}
       <section style={{
@@ -236,7 +276,7 @@ export default function LandingPage() {
         margin: "0 auto",
         padding: "clamp(80px, 14vh, 140px) clamp(20px, 5vw, 48px)",
       }}>
-        <FadeSection>
+        <Reveal>
           <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--accent)", marginBottom: 14, textAlign: "center" }}>
             EVERYTHING YOU NEED
           </p>
@@ -254,37 +294,31 @@ export default function LandingPage() {
           }}>
             BUILT FOR LIFTERS WHO KEEP SCORE
           </h2>
-        </FadeSection>
+        </Reveal>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: isThin ? 10 : 1 }}>
+        {/* Hero trio — Verdant-style glass cards with glowing inner visuals */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: isThin ? 12 : 16, marginBottom: isThin ? 12 : 16 }}>
           {[
-            { icon: Dumbbell, label: "LOG", title: "Track Everything", desc: "Sets, reps, weight — logged with precision. Every workout, every exercise, every PR.", delay: 0 },
-            { icon: Swords,   label: "COMPETE", title: "Live Competition", desc: "Race friends in real time. Leaderboards update instantly as sets are logged.", delay: 60 },
-            { icon: BarChart3,label: "GROW", title: "See Your Progress", desc: "Volume history charts show your strength climbing week over week.", delay: 120 },
-            { icon: Zap,      label: "MODE", title: "Motivation Modes", desc: "Switch between Monk, Revenge, Winter, Happy. The interface adapts to your mindset.", delay: 180 },
-            { icon: Users,    label: "SQUADS", title: "Train Together", desc: "Form squads, share stats, and push each other to hit new records.", delay: 240 },
-            { icon: Trophy,   label: "RANKS", title: "Athlete Benchmarks", desc: "See where your lifts rank — Beginner to Elite. Know your level.", delay: 300 },
+            { icon: Dumbbell,  title: "Unify every lift", body: "Sets, reps, weight — logged with precision and pulled into one source of truth.", viz: <NodeDiagram />, delay: 0 },
+            { icon: BarChart3, title: "See what matters", body: "Volume history and PR timelines surface the trend so you watch the line climb.", viz: <GlowChart delta="+32%" />, delay: 120 },
+            { icon: Trophy,    title: "Know your rank", body: "Athlete benchmarks place every lift — Beginner to Elite. No guessing.", viz: <Radar />, delay: 240 },
           ].map((f, i) => (
-            <FadeSection key={i} delay={f.delay}>
-              <div style={{
-                padding: "clamp(24px, 3.5vw, 36px)",
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                backdropFilter: "blur(20px)",
-                WebkitBackdropFilter: "blur(20px)",
-                height: "100%",
-                display: "flex", flexDirection: "column", gap: 12,
-                transition: "background 300ms, border-color 300ms",
-              }}
-              onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.07)"; (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(204,255,0,0.25)" }}
-              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = "rgba(255,255,255,0.04)"; (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255,255,255,0.08)" }}
-              >
-                <f.icon size={18} style={{ color: "var(--accent)" }} aria-hidden="true" />
-                <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 10, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text-secondary)" }}>{f.label}</p>
-                <h3 style={{ fontFamily: "var(--font-heading-stack)", fontSize: "clamp(14px, 1.5vw, 17px)", fontWeight: 700, letterSpacing: "-0.03em", textTransform: "uppercase", color: "var(--fg)" }}>{f.title}</h3>
-                <p style={{ fontFamily: "var(--font-body)", fontSize: 13, lineHeight: 1.75, color: "var(--text-secondary)", flex: 1 }}>{f.desc}</p>
-              </div>
-            </FadeSection>
+            <Reveal key={i} variant="up" delay={f.delay}>
+              <GlassFeatureCard icon={f.icon} title={f.title} body={f.body}>{f.viz}</GlassFeatureCard>
+            </Reveal>
+          ))}
+        </div>
+
+        {/* Supporting trio */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: isThin ? 12 : 16 }}>
+          {[
+            { icon: Swords, title: "Live competition", body: "Race friends in real time — leaderboards update instantly as sets land.", delay: 0 },
+            { icon: Zap,    title: "Motivation modes", body: "Monk, Revenge, Winter, Happy — the whole interface adapts to your mindset.", delay: 120 },
+            { icon: Users,  title: "Train together", body: "Form squads, share stats, push each other toward new records.", delay: 240 },
+          ].map((f, i) => (
+            <Reveal key={i} variant="up" delay={f.delay}>
+              <GlassFeatureCard icon={f.icon} title={f.title} body={f.body} />
+            </Reveal>
           ))}
         </div>
       </section>
@@ -353,7 +387,7 @@ export default function LandingPage() {
             display: "flex", flexDirection: "column", justifyContent: "center",
             padding: isThin ? "28px 18px" : "clamp(36px, 6vw, 88px)",
           }}>
-            <FadeSection>
+            <Reveal variant={s.imgSide === "left" ? "left" : "right"}>
               <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 10, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--accent)", marginBottom: 18 }}>
                 {s.num} — {s.tag}
               </p>
@@ -376,7 +410,7 @@ export default function LandingPage() {
               <Link href="/auth/login" style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: "var(--font-heading-stack)", fontSize: 12, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--accent)", textDecoration: "none" }}>
                 Get Started <ArrowRight size={14} />
               </Link>
-            </FadeSection>
+            </Reveal>
           </div>
         </section>
       ))}
@@ -405,7 +439,7 @@ export default function LandingPage() {
       {/* ══════════════════════════════════════
           NUMBERS BANNER
       ══════════════════════════════════════ */}
-      <FadeSection>
+      <Reveal>
         <section style={{ borderTop: "1px solid rgba(255,255,255,0.06)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
           <div style={{ maxWidth: 1400, margin: "0 auto", display: "grid", gridTemplateColumns: isThin ? "1fr 1fr" : "repeat(auto-fit, minmax(160px, 1fr))" }}>
             {[
@@ -427,13 +461,13 @@ export default function LandingPage() {
             ))}
           </div>
         </section>
-      </FadeSection>
+      </Reveal>
 
       {/* ══════════════════════════════════════
           MODES SHOWCASE
       ══════════════════════════════════════ */}
       <section style={{ maxWidth: 1400, margin: "0 auto", padding: "clamp(80px, 12vh, 130px) clamp(20px, 5vw, 48px)" }}>
-        <FadeSection>
+        <Reveal>
           <div style={{ textAlign: "center", marginBottom: "clamp(40px, 6vh, 64px)" }}>
             <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 600, letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--accent)", marginBottom: 12 }}>
               MOTIVATION MODES
@@ -442,7 +476,7 @@ export default function LandingPage() {
               MATCH YOUR<br />MINDSET
             </h2>
           </div>
-        </FadeSection>
+        </Reveal>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: isThin ? 10 : 1 }}>
           {[
@@ -451,7 +485,7 @@ export default function LandingPage() {
             { name: "WINTER",  hex: "oklch(0.80 0.05 240)", tagline: "Cold. Calculated. Relentless.",desc: "Ice-blue mode. Methodical grind.",  gradient: "135deg, rgba(30,60,90,0.4) 0%, rgba(0,0,5,0) 100%" },
             { name: "HAPPY",   hex: "oklch(0.85 0.20 80)",  tagline: "Good vibes, heavy plates.",   desc: "Warm gold mode. Enjoy the pump.",   gradient: "135deg, rgba(80,60,0,0.4) 0%, rgba(0,0,5,0) 100%" },
           ].map((m, i) => (
-            <FadeSection key={i} delay={i * 80}>
+            <Reveal key={i} variant="scale" delay={i * 80}>
               <div style={{
                 padding: "clamp(24px, 3.5vw, 36px)",
                 background: `linear-gradient(${m.gradient})`,
@@ -465,9 +499,22 @@ export default function LandingPage() {
                 <p style={{ fontFamily: "var(--font-heading-stack)", fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: m.hex, marginBottom: 10 }}>{m.tagline}</p>
                 <p style={{ fontFamily: "var(--font-body)", fontSize: 12, lineHeight: 1.65, color: "var(--text-secondary)" }}>{m.desc}</p>
               </div>
-            </FadeSection>
+            </Reveal>
           ))}
         </div>
+      </section>
+
+      {/* ══════════════════════════════════════
+          SOCIAL PROOF — testimonial
+      ══════════════════════════════════════ */}
+      <section style={{ maxWidth: 880, margin: "0 auto", padding: "clamp(60px, 10vh, 110px) clamp(20px, 5vw, 48px)" }}>
+        <Reveal variant="scale" duration={800}>
+          <Testimonial
+            quote="I stopped guessing. PUMPS shows me the line going up — and the leaderboard keeps me honest every single week."
+            author="Marcus R."
+            role="Powerlifter · 3-year streak"
+          />
+        </Reveal>
       </section>
 
       {/* ══════════════════════════════════════
@@ -478,7 +525,7 @@ export default function LandingPage() {
         <div aria-hidden="true" style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 80% 80% at 50% 50%, rgba(204,255,0,0.06) 0%, rgba(0,0,5,0.85) 70%)" }} />
 
         <div style={{ position: "relative", zIndex: 5, textAlign: "center", padding: "clamp(60px, 12vh, 110px) clamp(20px, 5vw, 48px)", maxWidth: 860 }}>
-          <FadeSection>
+          <Reveal>
             <h2 style={{
               fontFamily: "var(--font-display)",
               fontSize: "clamp(60px, 12vw, 110px)",
@@ -503,7 +550,7 @@ export default function LandingPage() {
             <Link href="/auth/login" className="btn-primary" style={{ fontSize: "clamp(13px, 1.5vw, 15px)", padding: "clamp(14px, 2vh, 18px) clamp(36px, 5vw, 60px)" }}>
               Start Lifting — Free Forever
             </Link>
-          </FadeSection>
+          </Reveal>
         </div>
       </section>
 
