@@ -33,3 +33,31 @@ export async function signedPhotoUrl(
 export async function removeProgressPhoto(supabase: SupabaseClient, path: string): Promise<void> {
   await supabase.storage.from(BUCKET).remove([path])
 }
+
+// ── Avatars ────────────────────────────────────────────────────────────
+
+const AVATAR_BUCKET = "avatars"
+
+/** Upload an avatar image under the user's folder; returns the storage path. */
+export async function uploadAvatar(
+  supabase: SupabaseClient,
+  userId: string,
+  file: File,
+): Promise<string> {
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase()
+  const path = `${userId}/${Date.now()}.${ext}`
+  const { error } = await supabase.storage.from(AVATAR_BUCKET).upload(path, file, {
+    upsert: false,
+    contentType: file.type || undefined,
+  })
+  if (error) throw error
+  return path
+}
+
+/** Remove an avatar object from storage. */
+export async function removeAvatar(
+  supabase: SupabaseClient,
+  path: string,
+): Promise<void> {
+  await supabase.storage.from(AVATAR_BUCKET).remove([path])
+}

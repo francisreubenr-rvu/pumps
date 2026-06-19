@@ -51,4 +51,10 @@ export const queryKeys = {
     /** A user's progress photos. */
     list: (userId: string) => ["photos", userId] as const,
   },
+  profile: {
+    /** Full profile record for the current user. */
+    own: (userId: string) => ["profile", userId] as const,
+    /** Availability check for a candidate username (boolean). */
+    usernameAvailable: (username: string) => ["profile", "username", username] as const,
+  },
 } as const

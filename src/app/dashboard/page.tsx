@@ -5,6 +5,7 @@ import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { TrendingUp, Swords, Plus, Flame, Zap, ChevronRight, Clock } from "lucide-react"
 import { useUser } from "@/lib/queries/auth"
+import { useProfile } from "@/lib/queries/profile"
 import { useDashboardData } from "@/lib/queries/dashboard"
 import {
   PageShell,
@@ -43,6 +44,7 @@ export default function DashboardPage() {
   const router = useRouter()
 
   const { data: user, isLoading: userLoading } = useUser()
+  const { data: profile } = useProfile(user?.id)
   const { data, isPending } = useDashboardData(user?.id)
 
   // Redirect to login only once we know there is no session (avoids bouncing
@@ -61,7 +63,9 @@ export default function DashboardPage() {
   const volumeHistory = data?.volumeHistory ?? []
   const hasVolumeHistory = volumeHistory.length > 0
 
-  const name = user ? (user.user_metadata?.display_name || user.email?.split("@")[0] || "Athlete") : ""
+  const name = user
+    ? (profile?.display_name || profile?.username || user.email?.split("@")[0] || "Athlete")
+    : ""
   const weekday = new Date().toLocaleDateString("en-US", { weekday: "long" })
   const streakLine =
     streak > 0

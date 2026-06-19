@@ -20,6 +20,7 @@ const NAV_LINKS = [
   { href: "/playlists", label: "Playlists" },
   { href: "/progress", label: "Progress" },
   { href: "/photos", label: "Photos" },
+  { href: "/settings", label: "Settings" },
 ]
 
 export function AppNav() {
